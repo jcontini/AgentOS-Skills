@@ -1,6 +1,6 @@
 # Passport Skills Registry
 # Lists all available skills with metadata for the Browse UI
-# Each skill has a corresponding {id}.md file in the skills/ directory
+# Each skill has its own folder: skills/{id}/skill.md
 
 version: 1
 
@@ -11,6 +11,7 @@ skills:
     category: productivity
     icon: https://cdn.simpleicons.org/todoist
     color: "#e44332"
+    file: skills/todoist/skill.md
     updated_at: "2025-01-15"
     
   - id: linear
@@ -19,21 +20,23 @@ skills:
     category: productivity
     icon: https://cdn.simpleicons.org/linear
     color: "#5E6AD2"
+    file: skills/linear/skill.md
     updated_at: "2025-01-15"
     
   - id: exa
     name: Exa
     description: Semantic web search
     category: search
-    icon: https://cdn.simpleicons.org/exa
+    icon: https://www.google.com/s2/favicons?domain=exa.ai&sz=64
     color: "#5046E5"
+    file: skills/exa/skill.md
     updated_at: "2025-01-15"
     
   - id: raindrop
     name: Raindrop
     description: Bookmark management
     category: productivity
-    icon: https://cdn.simpleicons.org/raindrop
+    icon: https://raindrop.io/favicon.ico
     color: "#0082FF"
+    file: skills/raindrop/skill.md
     updated_at: "2025-01-15"
-

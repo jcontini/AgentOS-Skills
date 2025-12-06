@@ -4,7 +4,7 @@ name: Exa
 description: Semantic web search
 category: search
 
-icon: https://cdn.simpleicons.org/exa
+icon: https://www.google.com/s2/favicons?domain=exa.ai&sz=64
 color: "#5046E5"
 
 abilities:

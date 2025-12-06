@@ -4,7 +4,7 @@ name: Raindrop
 description: Bookmark management
 category: productivity
 
-icon: https://cdn.simpleicons.org/raindrop
+icon: https://raindrop.io/favicon.ico
 color: "#0082FF"
 
 abilities:
