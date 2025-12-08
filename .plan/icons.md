@@ -167,3 +167,8 @@ This is a **future enhancement** — for now, icons are fetched each time but fr
 
 - **Passport UI refactor:** `passport/.plan/svelte-refactor.md`
 - **This plan:** `passport-skills/.plan/icons.md`
+
+
+
+
+

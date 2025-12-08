@@ -83,6 +83,15 @@ skills:
       base_url: https://api.raindrop.io
       auth_header: Authorization
       auth_prefix: "Bearer "
+  
+  - id: youtube
+    name: YouTube
+    description: Get video transcripts and download videos using yt-dlp
+    category: search
+    icon: https://cdn.simpleicons.org/youtube
+    color: "#FF0000"
+    docs: skills/youtube/skill.md
+    local: true  # Uses local yt-dlp CLI - no credentials needed
 
 # =============================================================================
 # AGENTS (MCP Clients)
@@ -222,3 +231,4 @@ agents:
     icon: https://www.google.com/s2/favicons?domain=github.com&sz=64
     color: "#666666"
     # VS Code extension, config TBD
+
