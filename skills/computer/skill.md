@@ -18,13 +18,21 @@ actions:
     run: open -a "$PARAM_NAME"
 
   open-url:
-    description: Open a URL in the default browser
+    description: Open a URL in a browser
     params:
       url:
         type: string
         required: true
         description: URL to open (https://, maps://, mailto:, etc.)
-    run: open "$PARAM_URL"
+      app:
+        type: string
+        description: App to open URL with (e.g., Safari, "Google Chrome"). Uses system default if not specified.
+    run: |
+      if [ -n "$PARAM_APP" ]; then
+        open -a "$PARAM_APP" "$PARAM_URL"
+      else
+        open "$PARAM_URL"
+      fi
 
   save-file:
     description: Save content to Downloads folder and optionally open it
