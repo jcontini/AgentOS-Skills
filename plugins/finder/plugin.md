@@ -87,9 +87,11 @@ actions:
         TYPE="other"
       fi
       
-      # Get metadata
-      MIME=$(file -b --mime-type "$PARAM_PATH" 2>/dev/null || echo "unknown")
-      SIZE=$(stat -f%z "$PARAM_PATH" 2>/dev/null || stat -c%s "$PARAM_PATH" 2>/dev/null || echo "0")
+      # Get metadata (try macOS stat first, then Linux, fallback to unknown)
+      MIME=$(file -b --mime-type "$PARAM_PATH" || echo "unknown")
+      SIZE=$(stat -f%z "$PARAM_PATH" 2>&1 || stat -c%s "$PARAM_PATH" 2>&1 || echo "0")
+      # Clean up size in case of error message
+      [[ "$SIZE" =~ ^[0-9]+$ ]] || SIZE="0"
       EXT="${PARAM_PATH##*.}"
       [ "$EXT" = "$PARAM_PATH" ] && EXT=""
       

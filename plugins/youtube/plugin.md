@@ -29,9 +29,12 @@ actions:
     run: |
       TMPDIR=$(mktemp -d)
       trap "rm -rf $TMPDIR" EXIT
-      yt-dlp --skip-download --write-auto-sub --sub-lang "$PARAM_LANG" \
-        --convert-subs srt "$PARAM_URL" -o "$TMPDIR/video" 2>/dev/null
-      if ls "$TMPDIR"/*.srt 1>/dev/null 2>&1; then
+      # Use --quiet to suppress progress, but errors still go to stderr
+      if ! yt-dlp --quiet --skip-download --write-auto-sub --sub-lang "$PARAM_LANG" \
+        --convert-subs srt "$PARAM_URL" -o "$TMPDIR/video"; then
+        error "yt-dlp failed to download subtitles"
+      fi
+      if ls "$TMPDIR"/*.srt 1> /dev/null 2>&1; then
         cat "$TMPDIR"/*.srt | \
           grep -v "^[0-9]*$" | \
           grep -v -- "-->" | \

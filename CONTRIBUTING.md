@@ -358,15 +358,82 @@ Settings are available as `$SETTING_*` environment variables (uppercased):
 NUM="${PARAM_NUM_RESULTS:-$SETTING_NUM_RESULTS}"  # Use param or fall back to setting
 ```
 
+## Error Handling
+
+**⚠️ Never suppress errors.** agentOS captures stderr from shell scripts and displays it in the Activity log. This is critical for debugging.
+
+### Forbidden Patterns
+
+These patterns are blocked by validation and will fail CI:
+
+| Pattern | Why it's bad |
+|---------|--------------|
+| `2>/dev/null` | Hides stderr, errors become invisible |
+| `2>&-` | Closes stderr, same problem |
+| `&>/dev/null` | Hides all output including errors |
+| `command \|\| true` | Masks exit codes |
+
+### Better Alternatives
+
+Instead of suppressing errors, handle them properly:
+
+```bash
+# ❌ BAD: Hides errors
+sqlite3 "$db" "$query" 2>/dev/null
+
+# ✅ GOOD: Errors are visible, agentOS logs them
+sqlite3 "$db" "$query"
+
+# ✅ GOOD: Catch and report errors with context
+if ! result=$(command 2>&1); then
+  echo "Error: $result" >&2
+  exit 1
+fi
+
+# ✅ GOOD: Use the built-in error helper
+error "Something went wrong"  # Prints to stderr and exits 1
+```
+
+### Built-in Helpers
+
+These are automatically available in all `run` scripts:
+
+```bash
+error "message"      # Print to stderr and exit 1
+warn "message"       # Print warning to stderr (continues)
+require_file "path"  # Exit with error if file doesn't exist
+require_dir "path"   # Exit with error if directory doesn't exist
+downloads            # Print the downloads folder path
+```
+
+### When You Really Need to Ignore Errors
+
+If a command is expected to fail sometimes (e.g., checking if something exists), capture the output and handle it:
+
+```bash
+# Check if binary exists without hiding errors
+if command -v mytool &>/dev/null; then
+  mytool do-something
+else
+  echo "mytool not installed, skipping" >&2
+fi
+
+# Ignore specific expected failures, but log them
+if ! output=$(some_command 2>&1); then
+  echo "Note: some_command returned error (this is expected): $output" >&2
+fi
+```
+
 ## Tips
 
-1. **Look at examples** — See `skills/exa/skill.md` and `skills/youtube/skill.md` for shell protocol examples
-2. **Test actions first** — For shell skills, test the `run` scripts manually with sample parameters
+1. **Look at examples** — See `plugins/exa/plugin.md` and `plugins/youtube/plugin.md` for shell protocol examples
+2. **Test actions first** — For shell plugins, test the `run` scripts manually with sample parameters
 3. **Keep it concise** — AI reads this, so less is often more
 4. **Show real examples** — Actual commands/API calls that work
 5. **Note quirks** — API gotchas, rate limits, pagination, edge cases
 6. **Use environment variables** — `$PARAM_*` for parameters, `$AUTH_TOKEN` for credentials
-7. **Test locally** — Set `skills_source` in agentOS settings to your local repo path to test changes
+7. **Test locally** — Set `plugins_source` in agentOS settings to your local repo path to test changes
+8. **Never suppress errors** — Use proper error handling, agentOS logs all stderr
 
 ## Questions?
 

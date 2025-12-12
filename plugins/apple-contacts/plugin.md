@@ -26,7 +26,7 @@ actions:
         description: Max rows to return
     run: |
       for db in ~/Library/Application\ Support/AddressBook/Sources/*/AddressBook-v22.abcddb; do
-        sqlite3 -header -separator ' | ' "$db" "$PARAM_SQL LIMIT ${PARAM_LIMIT:-50}" 2>/dev/null
+        sqlite3 -header -separator ' | ' "$db" "$PARAM_SQL LIMIT ${PARAM_LIMIT:-50}"
       done
 
   get:

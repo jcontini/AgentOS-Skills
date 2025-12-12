@@ -16,6 +16,31 @@ const VALID_AUTH_TYPES = ['api_key', 'oauth', 'service_account', 'cli', 'local']
 const VALID_SETTING_TYPES = ['integer', 'enum', 'boolean', 'string'];
 const VALID_PARAM_TYPES = ['string', 'integer', 'boolean', 'number'];
 
+// Patterns that suppress errors - these prevent proper error logging in agentOS
+const FORBIDDEN_ERROR_PATTERNS = [
+  { pattern: /2>\/dev\/null/g, name: '2>/dev/null', reason: 'suppresses stderr, hiding errors from activity log' },
+  { pattern: /2>&-/g, name: '2>&-', reason: 'closes stderr, hiding errors from activity log' },
+  { pattern: />&\/dev\/null/g, name: '>&/dev/null', reason: 'suppresses all output including errors' },
+  { pattern: /&>\/dev\/null/g, name: '&>/dev/null', reason: 'suppresses all output including errors' },
+  { pattern: /2>\/dev\/null\s*$/gm, name: '2>/dev/null at EOL', reason: 'suppresses stderr' },
+];
+
+/**
+ * Check shell script for forbidden error suppression patterns
+ */
+function checkScriptForErrorSuppression(script, actionName) {
+  const warnings = [];
+  
+  for (const { pattern, name, reason } of FORBIDDEN_ERROR_PATTERNS) {
+    const matches = script.match(pattern);
+    if (matches) {
+      warnings.push(`actions.${actionName}.run: contains '${name}' (${reason}). Use proper error handling instead.`);
+    }
+  }
+  
+  return warnings;
+}
+
 let errors = [];
 let warnings = [];
 
@@ -136,8 +161,14 @@ function validateSkill(filePath, frontmatter) {
       if (!action.description) {
         errors.push(`actions.${actionName}: missing required field 'description'`);
       }
-      if (!action.run && frontmatter.protocol === 'shell') {
-        errors.push(`actions.${actionName}: missing required field 'run' (required for shell protocol)`);
+      if (!action.run && !action.api && frontmatter.protocol === 'shell') {
+        errors.push(`actions.${actionName}: missing required field 'run' or 'api' (required for shell protocol)`);
+      }
+
+      // Check for error suppression patterns in shell scripts
+      if (action.run && typeof action.run === 'string') {
+        const suppressionWarnings = checkScriptForErrorSuppression(action.run, actionName);
+        errors.push(...suppressionWarnings); // Treat as errors to block merge
       }
 
       // Validate params
@@ -165,27 +196,27 @@ function validateSkill(filePath, frontmatter) {
 }
 
 function main() {
-  const skillsDir = path.join(__dirname, '..', 'skills');
+  const pluginsDir = path.join(__dirname, '..', 'plugins');
   
-  if (!fs.existsSync(skillsDir)) {
-    console.error(`❌ Skills directory not found: ${skillsDir}`);
+  if (!fs.existsSync(pluginsDir)) {
+    console.error(`❌ Plugins directory not found: ${pluginsDir}`);
     process.exit(1);
   }
 
-  const skillDirs = fs.readdirSync(skillsDir, { withFileTypes: true })
+  const pluginDirs = fs.readdirSync(pluginsDir, { withFileTypes: true })
     .filter(dirent => dirent.isDirectory())
     .map(dirent => dirent.name);
 
-  console.log(`🔍 Validating ${skillDirs.length} skills...\n`);
+  console.log(`🔍 Validating ${pluginDirs.length} plugins...\n`);
 
   let totalErrors = 0;
   let totalWarnings = 0;
 
-  for (const skillDir of skillDirs) {
-    const skillPath = path.join(skillsDir, skillDir, 'skill.md');
+  for (const pluginDir of pluginDirs) {
+    const skillPath = path.join(pluginsDir, pluginDir, 'plugin.md');
     
     if (!fs.existsSync(skillPath)) {
-      console.error(`⚠️  ${skillDir}: skill.md not found`);
+      console.error(`⚠️  ${pluginDir}: plugin.md not found`);
       continue;
     }
 
@@ -193,7 +224,7 @@ function main() {
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
 
     if (!frontmatterMatch) {
-      console.error(`❌ ${skillDir}: No YAML frontmatter found`);
+      console.error(`❌ ${pluginDir}: No YAML frontmatter found`);
       totalErrors++;
       continue;
     }
@@ -203,7 +234,7 @@ function main() {
       const { errors, warnings } = validateSkill(skillPath, frontmatter);
 
       if (errors.length > 0 || warnings.length > 0) {
-        console.log(`\n📋 ${skillDir} (${frontmatter.name || 'unnamed'})`);
+        console.log(`\n📋 ${pluginDir} (${frontmatter.name || 'unnamed'})`);
         
         if (errors.length > 0) {
           console.log(`   ❌ Errors (${errors.length}):`);
@@ -217,17 +248,17 @@ function main() {
           totalWarnings += warnings.length;
         }
       } else {
-        console.log(`✅ ${skillDir}`);
+        console.log(`✅ ${pluginDir}`);
       }
     } catch (e) {
-      console.error(`❌ ${skillDir}: Failed to parse YAML: ${e.message}`);
+      console.error(`❌ ${pluginDir}: Failed to parse YAML: ${e.message}`);
       totalErrors++;
     }
   }
 
   console.log(`\n${'='.repeat(50)}`);
   if (totalErrors === 0 && totalWarnings === 0) {
-    console.log(`✅ All skills validated successfully!`);
+    console.log(`✅ All plugins validated successfully!`);
     process.exit(0);
   } else {
     console.log(`📊 Summary:`);
@@ -253,6 +284,3 @@ try {
   console.error('   Or use: npx js-yaml (if available)');
   process.exit(1);
 }
-
-
-
