@@ -20,7 +20,7 @@ actions:
         default: 20
         description: Number of conversations to return
     run: |
-      sqlite3 -header -separator ' | ' ~/Library/Group\ Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite << 'SQL'
+      sqlite3 -header -separator ' | ' ~/Library/Group\ Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite << SQL
       SELECT 
           cs.ZPARTNERNAME as contact,
           CASE cs.ZSESSIONTYPE WHEN 1 THEN 'group' ELSE 'dm' END as type,
