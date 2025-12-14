@@ -16,6 +16,34 @@ requires:
   - curl
   - jq
 
+helpers: |
+  # GraphQL API helper with error handling
+  # Usage: RESPONSE=$(gql 'query { ... }')
+  gql() {
+    local query="$1"
+    local response
+    response=$(curl -s -X POST "https://api.linear.app/graphql" \
+      -H "Authorization: $AUTH_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "{\"query\": \"$query\"}")
+    
+    # Check for errors in response
+    if echo "$response" | jq -e '.errors' > /dev/null 2>&1; then
+      local err_msg
+      err_msg=$(echo "$response" | jq -r '.errors[0].message // "Unknown API error"')
+      echo "Linear API Error: $err_msg" >&2
+      exit 1
+    fi
+    
+    # Check for null data (usually auth issues)
+    if echo "$response" | jq -e '.data == null' > /dev/null 2>&1; then
+      echo "Linear API Error: No data returned (check credentials)" >&2
+      exit 1
+    fi
+    
+    echo "$response"
+  }
+
 actions:
   # === ISSUES ===
   list_issues:
@@ -23,7 +51,7 @@ actions:
     params:
       team:
         type: string
-        description: Team name or key (e.g., "AgentOS" or "AGE")
+        description: Team key (e.g., "ADA"). Required for filtering.
       assignee:
         type: string
         description: Filter by assignee ("me" for current user)
@@ -40,17 +68,17 @@ actions:
     run: |
       FILTER=""
       if [ -n "$PARAM_TEAM" ]; then
-        FILTER="$FILTER, team: { key: { eq: \"$PARAM_TEAM\" } }"
+        FILTER="$FILTER, team: { key: { eq: \\\"$PARAM_TEAM\\\" } }"
       fi
       if [ -n "$PARAM_ASSIGNEE" ]; then
         if [ "$PARAM_ASSIGNEE" = "me" ]; then
           FILTER="$FILTER, assignee: { isMe: { eq: true } }"
         else
-          FILTER="$FILTER, assignee: { name: { contains: \"$PARAM_ASSIGNEE\" } }"
+          FILTER="$FILTER, assignee: { name: { contains: \\\"$PARAM_ASSIGNEE\\\" } }"
         fi
       fi
       if [ -n "$PARAM_STATE" ]; then
-        FILTER="$FILTER, state: { name: { eq: \"$PARAM_STATE\" } }"
+        FILTER="$FILTER, state: { name: { eq: \\\"$PARAM_STATE\\\" } }"
       fi
       if [ -n "$PARAM_CYCLE" ]; then
         FILTER="$FILTER, cycle: { number: { eq: $PARAM_CYCLE } }"
@@ -62,11 +90,8 @@ actions:
         FILTER="filter: { ${FILTER#, } }"
       fi
       
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issues(first: $LIMIT, $FILTER) { nodes { identifier title state { name } priority cycle { number } project { name } assignee { name } } } }\"}" | \
-      jq -r '.data.issues.nodes[] | "[\(.identifier)] \(.title) | \(.state.name) | P\(.priority // 0) | Cycle: \(.cycle.number // "-") | Project: \(.project.name // "-")"'
+      RESPONSE=$(gql "{ issues(first: $LIMIT, $FILTER) { nodes { identifier title state { name } priority cycle { number } project { name } assignee { name } } } }")
+      echo "$RESPONSE" | jq -r '.data.issues.nodes[] | "[\(.identifier)] \(.title) | \(.state.name) | P\(.priority // 0) | Cycle: \(.cycle.number // "-") | Project: \(.project.name // "-")"'
 
   get_issue:
     description: Get issue details including relations
@@ -76,11 +101,8 @@ actions:
         required: true
         description: Issue identifier (e.g., AGE-8)
     run: |
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$PARAM_ID\\\") { id identifier title description state { name } priority url cycle { number } project { name } assignee { name } relations { nodes { id type relatedIssue { identifier title } } } } }\"}" | \
-      jq '.data.issue'
+      RESPONSE=$(gql "{ issue(id: \\\"$PARAM_ID\\\") { id identifier title description state { name } priority url cycle { number } project { name } assignee { name } relations { nodes { id type relatedIssue { identifier title } } } } }")
+      echo "$RESPONSE" | jq '.data.issue'
 
   create_issue:
     description: Create a new issue
@@ -92,7 +114,7 @@ actions:
       team:
         type: string
         required: true
-        description: Team name or key
+        description: Team key (e.g., "ADA")
       description:
         type: string
         description: Issue description (markdown)
@@ -113,11 +135,13 @@ actions:
       INPUT="title: \\\"$PARAM_TITLE\\\""
       
       # Get team ID
-      TEAM_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ teams { nodes { id key name } } }\"}" | \
-      jq -r ".data.teams.nodes[] | select(.key == \"$PARAM_TEAM\" or .name == \"$PARAM_TEAM\") | .id")
+      TEAMS_RESPONSE=$(gql "{ teams { nodes { id key name } } }")
+      TEAM_ID=$(echo "$TEAMS_RESPONSE" | jq -r ".data.teams.nodes[] | select(.key == \"$PARAM_TEAM\" or .name == \"$PARAM_TEAM\") | .id")
+      
+      if [ -z "$TEAM_ID" ]; then
+        echo "Error: Team '$PARAM_TEAM' not found" >&2
+        exit 1
+      fi
       INPUT="$INPUT, teamId: \\\"$TEAM_ID\\\""
       
       if [ -n "$PARAM_DESCRIPTION" ]; then
@@ -128,35 +152,23 @@ actions:
         INPUT="$INPUT, priority: $PARAM_PRIORITY"
       fi
       if [ -n "$PARAM_PROJECT" ]; then
-        PROJECT_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-          -H "Authorization: $AUTH_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "{\"query\": \"{ projects { nodes { id name } } }\"}" | \
-        jq -r ".data.projects.nodes[] | select(.name == \"$PARAM_PROJECT\") | .id")
+        PROJECTS_RESPONSE=$(gql "{ projects { nodes { id name } } }")
+        PROJECT_ID=$(echo "$PROJECTS_RESPONSE" | jq -r ".data.projects.nodes[] | select(.name == \"$PARAM_PROJECT\") | .id")
         INPUT="$INPUT, projectId: \\\"$PROJECT_ID\\\""
       fi
       if [ -n "$PARAM_STATE" ]; then
-        STATE_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-          -H "Authorization: $AUTH_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "{\"query\": \"{ workflowStates { nodes { id name team { id } } } }\"}" | \
-        jq -r ".data.workflowStates.nodes[] | select(.name == \"$PARAM_STATE\" and .team.id == \"$TEAM_ID\") | .id")
+        STATES_RESPONSE=$(gql "{ workflowStates { nodes { id name team { id } } } }")
+        STATE_ID=$(echo "$STATES_RESPONSE" | jq -r ".data.workflowStates.nodes[] | select(.name == \"$PARAM_STATE\" and .team.id == \"$TEAM_ID\") | .id")
         INPUT="$INPUT, stateId: \\\"$STATE_ID\\\""
       fi
       if [ -n "$PARAM_CYCLE" ]; then
-        CYCLE_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-          -H "Authorization: $AUTH_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "{\"query\": \"{ cycles { nodes { id number team { id } } } }\"}" | \
-        jq -r ".data.cycles.nodes[] | select(.number == $PARAM_CYCLE and .team.id == \"$TEAM_ID\") | .id")
+        CYCLES_RESPONSE=$(gql "{ cycles { nodes { id number team { id } } } }")
+        CYCLE_ID=$(echo "$CYCLES_RESPONSE" | jq -r ".data.cycles.nodes[] | select(.number == $PARAM_CYCLE and .team.id == \"$TEAM_ID\") | .id")
         INPUT="$INPUT, cycleId: \\\"$CYCLE_ID\\\""
       fi
       
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"mutation { issueCreate(input: { $INPUT }) { success issue { identifier title url } } }\"}" | \
-      jq '.data.issueCreate'
+      RESPONSE=$(gql "mutation { issueCreate(input: { $INPUT }) { success issue { identifier title url } } }")
+      echo "$RESPONSE" | jq '.data.issueCreate'
 
   update_issue:
     description: Update an existing issue
@@ -181,17 +193,15 @@ actions:
         type: number
         description: Cycle number (use 0 to remove from cycle)
     run: |
-      # Get issue UUID from identifier
-      ISSUE_UUID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$PARAM_ID\\\") { id team { id } } }\"}" | \
-      jq -r '.data.issue.id')
-      TEAM_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$PARAM_ID\\\") { team { id } } }\"}" | \
-      jq -r '.data.issue.team.id')
+      # Get issue UUID and team ID from identifier
+      ISSUE_RESPONSE=$(gql "{ issue(id: \\\"$PARAM_ID\\\") { id team { id } } }")
+      ISSUE_UUID=$(echo "$ISSUE_RESPONSE" | jq -r '.data.issue.id')
+      TEAM_ID=$(echo "$ISSUE_RESPONSE" | jq -r '.data.issue.team.id')
+      
+      if [ -z "$ISSUE_UUID" ] || [ "$ISSUE_UUID" = "null" ]; then
+        echo "Error: Issue '$PARAM_ID' not found" >&2
+        exit 1
+      fi
       
       INPUT=""
       if [ -n "$PARAM_TITLE" ]; then
@@ -205,33 +215,24 @@ actions:
         INPUT="$INPUT, priority: $PARAM_PRIORITY"
       fi
       if [ -n "$PARAM_STATE" ]; then
-        STATE_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-          -H "Authorization: $AUTH_TOKEN" \
-          -H "Content-Type: application/json" \
-          -d "{\"query\": \"{ workflowStates { nodes { id name team { id } } } }\"}" | \
-        jq -r ".data.workflowStates.nodes[] | select(.name == \"$PARAM_STATE\" and .team.id == \"$TEAM_ID\") | .id")
+        STATES_RESPONSE=$(gql "{ workflowStates { nodes { id name team { id } } } }")
+        STATE_ID=$(echo "$STATES_RESPONSE" | jq -r ".data.workflowStates.nodes[] | select(.name == \"$PARAM_STATE\" and .team.id == \"$TEAM_ID\") | .id")
         INPUT="$INPUT, stateId: \\\"$STATE_ID\\\""
       fi
       if [ -n "$PARAM_CYCLE" ]; then
         if [ "$PARAM_CYCLE" = "0" ]; then
           INPUT="$INPUT, cycleId: null"
         else
-          CYCLE_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-            -H "Authorization: $AUTH_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"query\": \"{ cycles { nodes { id number team { id } } } }\"}" | \
-          jq -r ".data.cycles.nodes[] | select(.number == $PARAM_CYCLE and .team.id == \"$TEAM_ID\") | .id")
+          CYCLES_RESPONSE=$(gql "{ cycles { nodes { id number team { id } } } }")
+          CYCLE_ID=$(echo "$CYCLES_RESPONSE" | jq -r ".data.cycles.nodes[] | select(.number == $PARAM_CYCLE and .team.id == \"$TEAM_ID\") | .id")
           INPUT="$INPUT, cycleId: \\\"$CYCLE_ID\\\""
         fi
       fi
       
       INPUT="${INPUT#, }"
       
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"mutation { issueUpdate(id: \\\"$ISSUE_UUID\\\", input: { $INPUT }) { success issue { identifier title state { name } url } } }\"}" | \
-      jq '.data.issueUpdate'
+      RESPONSE=$(gql "mutation { issueUpdate(id: \\\"$ISSUE_UUID\\\", input: { $INPUT }) { success issue { identifier title state { name } url } } }")
+      echo "$RESPONSE" | jq '.data.issueUpdate'
 
   # === BLOCKING RELATIONSHIPS (MCP doesn't support this!) ===
   add_blocking:
@@ -247,23 +248,14 @@ actions:
         description: Issue that is blocked (e.g., AGE-6)
     run: |
       # Get UUIDs for both issues
-      BLOCKER_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$PARAM_BLOCKER\\\") { id } }\"}" | \
-      jq -r '.data.issue.id')
+      BLOCKER_RESPONSE=$(gql "{ issue(id: \\\"$PARAM_BLOCKER\\\") { id } }")
+      BLOCKER_ID=$(echo "$BLOCKER_RESPONSE" | jq -r '.data.issue.id')
       
-      BLOCKED_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$PARAM_BLOCKED\\\") { id } }\"}" | \
-      jq -r '.data.issue.id')
+      BLOCKED_RESPONSE=$(gql "{ issue(id: \\\"$PARAM_BLOCKED\\\") { id } }")
+      BLOCKED_ID=$(echo "$BLOCKED_RESPONSE" | jq -r '.data.issue.id')
       
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"mutation { issueRelationCreate(input: { issueId: \\\"$BLOCKER_ID\\\", relatedIssueId: \\\"$BLOCKED_ID\\\", type: blocks }) { success issueRelation { id } } }\"}" | \
-      jq -r 'if .data.issueRelationCreate.success then "✅ \(.data.issueRelationCreate.issueRelation.id): '"$PARAM_BLOCKER"' blocks '"$PARAM_BLOCKED"'" else "❌ Failed: \(.errors[0].message // "Unknown error")" end'
+      RESPONSE=$(gql "mutation { issueRelationCreate(input: { issueId: \\\"$BLOCKER_ID\\\", relatedIssueId: \\\"$BLOCKED_ID\\\", type: blocks }) { success issueRelation { id } } }")
+      echo "$RESPONSE" | jq -r 'if .data.issueRelationCreate.success then "✅ '"$PARAM_BLOCKER"' blocks '"$PARAM_BLOCKED"'" else "❌ Failed" end'
 
   remove_blocking:
     description: Remove a blocking relationship
@@ -278,35 +270,23 @@ actions:
         description: Issue that was blocked (e.g., AGE-6)
     run: |
       # Get blocker UUID
-      BLOCKER_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$PARAM_BLOCKER\\\") { id } }\"}" | \
-      jq -r '.data.issue.id')
+      BLOCKER_RESPONSE=$(gql "{ issue(id: \\\"$PARAM_BLOCKER\\\") { id } }")
+      BLOCKER_ID=$(echo "$BLOCKER_RESPONSE" | jq -r '.data.issue.id')
       
-      BLOCKED_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$PARAM_BLOCKED\\\") { id } }\"}" | \
-      jq -r '.data.issue.id')
+      BLOCKED_RESPONSE=$(gql "{ issue(id: \\\"$PARAM_BLOCKED\\\") { id } }")
+      BLOCKED_ID=$(echo "$BLOCKED_RESPONSE" | jq -r '.data.issue.id')
       
       # Find the relation
-      RELATION_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$BLOCKER_ID\\\") { relations { nodes { id type relatedIssue { id } } } } }\"}" | \
-      jq -r ".data.issue.relations.nodes[] | select(.type == \"blocks\" and .relatedIssue.id == \"$BLOCKED_ID\") | .id")
+      REL_RESPONSE=$(gql "{ issue(id: \\\"$BLOCKER_ID\\\") { relations { nodes { id type relatedIssue { id } } } } }")
+      RELATION_ID=$(echo "$REL_RESPONSE" | jq -r ".data.issue.relations.nodes[] | select(.type == \"blocks\" and .relatedIssue.id == \"$BLOCKED_ID\") | .id")
       
       if [ -z "$RELATION_ID" ]; then
         echo "❌ No blocking relationship found"
         exit 1
       fi
       
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"mutation { issueRelationDelete(id: \\\"$RELATION_ID\\\") { success } }\"}" | \
-      jq -r 'if .data.issueRelationDelete.success then "✅ Removed blocking relationship" else "❌ Failed" end'
+      RESPONSE=$(gql "mutation { issueRelationDelete(id: \\\"$RELATION_ID\\\") { success } }")
+      echo "$RESPONSE" | jq -r 'if .data.issueRelationDelete.success then "✅ Removed blocking relationship" else "❌ Failed" end'
 
   list_relations:
     description: List all relations for an issue
@@ -316,11 +296,8 @@ actions:
         required: true
         description: Issue identifier (e.g., AGE-8)
     run: |
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ issue(id: \\\"$PARAM_ID\\\") { identifier title relations { nodes { id type relatedIssue { identifier title } } } inverseRelations { nodes { id type issue { identifier title } } } } }\"}" | \
-      jq -r '
+      RESPONSE=$(gql "{ issue(id: \\\"$PARAM_ID\\\") { identifier title relations { nodes { id type relatedIssue { identifier title } } } inverseRelations { nodes { id type issue { identifier title } } } } }")
+      echo "$RESPONSE" | jq -r '
         .data.issue as $issue |
         "Issue: \($issue.identifier) - \($issue.title)\n",
         "Blocks:",
@@ -338,52 +315,42 @@ actions:
       team:
         type: string
         required: true
-        description: Team name or key
+        description: Team key (e.g., "ADA")
       type:
         type: string
         description: Filter by current, next, or past
     run: |
-      TEAM_ID=$(curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ teams { nodes { id key name } } }\"}" | \
-      jq -r ".data.teams.nodes[] | select(.key == \"$PARAM_TEAM\" or .name == \"$PARAM_TEAM\") | .id")
+      TEAMS_RESPONSE=$(gql "{ teams { nodes { id key name } } }")
+      TEAM_ID=$(echo "$TEAMS_RESPONSE" | jq -r ".data.teams.nodes[] | select(.key == \"$PARAM_TEAM\" or .name == \"$PARAM_TEAM\") | .id")
       
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\": \"{ team(id: \\\"$TEAM_ID\\\") { cycles { nodes { number startsAt endsAt completedIssueCountHistory scopeHistory } } } }\"}" | \
-      jq -r '.data.team.cycles.nodes | sort_by(.number) | reverse | .[:5][] | "Cycle \(.number): \(.startsAt[:10]) to \(.endsAt[:10])"'
+      if [ -z "$TEAM_ID" ]; then
+        echo "Error: Team '$PARAM_TEAM' not found" >&2
+        exit 1
+      fi
+      
+      RESPONSE=$(gql "{ team(id: \\\"$TEAM_ID\\\") { cycles { nodes { number startsAt endsAt completedIssueCountHistory scopeHistory } } } }")
+      echo "$RESPONSE" | jq -r '.data.team.cycles.nodes | sort_by(.number) | reverse | .[:5][] | "Cycle \(.number): \(.startsAt[:10]) to \(.endsAt[:10])"'
 
   # === PROJECTS ===
   list_projects:
     description: List all projects
     run: |
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"query": "{ projects { nodes { id name state lead { name } priority } } }"}' | \
-      jq -r '.data.projects.nodes[] | "[\(.id[:8])...] \(.name) | \(.state) | P\(.priority) | Lead: \(.lead.name // "-")"'
+      RESPONSE=$(gql "{ projects { nodes { id name state lead { name } priority } } }")
+      echo "$RESPONSE" | jq -r '.data.projects.nodes[] | "[\(.id[:8])...] \(.name) | \(.state) | P\(.priority) | Lead: \(.lead.name // "-")"'
 
   # === TEAMS ===
   list_teams:
     description: List all teams
     run: |
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"query": "{ teams { nodes { id key name } } }"}' | \
-      jq -r '.data.teams.nodes[] | "[\(.key)] \(.name) | ID: \(.id)"'
+      RESPONSE=$(gql "{ teams { nodes { id key name } } }")
+      echo "$RESPONSE" | jq -r '.data.teams.nodes[] | "[\(.key)] \(.name) | ID: \(.id)"'
 
   # === VIEWER ===
   whoami:
     description: Get current user info
     run: |
-      curl -s -X POST "https://api.linear.app/graphql" \
-        -H "Authorization: $AUTH_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"query": "{ viewer { id name email } }"}' | \
-      jq -r '.data.viewer | "\(.name) <\(.email)> | ID: \(.id)"'
+      RESPONSE=$(gql "{ viewer { id name email } }")
+      echo "$RESPONSE" | jq -r '.data.viewer | "\(.name) <\(.email)> | ID: \(.id)"'
 ---
 
 # Linear
