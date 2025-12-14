@@ -361,3 +361,18 @@ mv ~/.cursor/mcp.json.tmp ~/.cursor/mcp.json
 ```
 
 This renames the config and back, triggering Cursor to re-read and reconnect. Do this whenever you get "Not connected" errors from AgentOS tools.
+
+## Contributing Plugins
+
+To contribute a plugin to the public repo:
+
+1. Fork the [AgentOS-Plugins](https://github.com/jcontini/AgentOS-Plugins) repo
+2. Create your plugin in `plugins/{id}/plugin.md`
+3. Run the audit tool to check for issues:
+   ```
+   UsePlugin(plugin: "plugin-dev", tool: "audit", params: {path: "plugins/my-plugin/plugin.md"})
+   ```
+4. Test locally by setting your fork as the plugins source in AgentOS Settings
+5. Submit a PR
+
+The audit tool checks for common issues before you submit.
