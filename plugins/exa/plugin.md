@@ -7,8 +7,15 @@ icon: https://www.finsmes.com/wp-content/uploads/2024/07/exa.jpeg
 color: "#5436DA"
 
 provides:
-  - web-search
-  - url-extract
+  web-search:
+    action: search_urls
+    params:
+      query: "{{query}}"
+      num_results: "{{num_results}}"
+  url-extract:
+    action: extract
+    params:
+      urls: "{{url}}"
 
 auth:
   type: api_key
