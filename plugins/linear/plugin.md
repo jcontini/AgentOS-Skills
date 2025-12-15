@@ -140,6 +140,8 @@ actions:
             cycle { id number }
             project { id name }
             team { id key name }
+            parent { id identifier title }
+            children { nodes { id identifier title state { name } } }
             relations { nodes { id type relatedIssue { identifier title } } }
             inverseRelations { nodes { id type issue { identifier title } } }
           }
@@ -181,12 +183,15 @@ actions:
       assignee_id:
         type: string
         description: Assignee user ID
+      parent_id:
+        type: string
+        description: Parent issue ID to create as sub-issue
     graphql:
       query: |
         mutation($input: IssueCreateInput!) {
           issueCreate(input: $input) {
             success
-            issue { id identifier title url }
+            issue { id identifier title url parent { identifier } }
           }
         }
       variables:
@@ -199,6 +204,7 @@ actions:
           projectId: $PARAM_PROJECT_ID
           cycleId: $PARAM_CYCLE_ID
           assigneeId: $PARAM_ASSIGNEE_ID
+          parentId: $PARAM_PARENT_ID
       extract: .data.issueCreate
 
   update_issue:
@@ -229,12 +235,15 @@ actions:
       assignee_id:
         type: string
         description: New assignee user ID
+      parent_id:
+        type: string
+        description: Parent issue ID (set to make this a sub-issue)
     graphql:
       query: |
         mutation($id: String!, $input: IssueUpdateInput!) {
           issueUpdate(id: $id, input: $input) {
             success
-            issue { id identifier title state { name } project { name } url }
+            issue { id identifier title state { name } project { name } parent { identifier } url }
           }
         }
       variables:
@@ -247,6 +256,7 @@ actions:
           projectId: $PARAM_PROJECT_ID
           cycleId: $PARAM_CYCLE_ID
           assigneeId: $PARAM_ASSIGNEE_ID
+          parentId: $PARAM_PARENT_ID
       extract: .data.issueUpdate
 
   # =============================================================================
