@@ -12,7 +12,6 @@
 import { chromium } from 'playwright';
 import { join } from 'path';
 import { homedir } from 'os';
-import { execSync } from 'child_process';
 
 const action = process.env.PARAM_ACTION || process.argv[2];
 const url = process.env.PARAM_URL;
@@ -38,32 +37,13 @@ const userAgents = {
 const userAgent = userAgents[userAgentSetting] || userAgents.chrome;
 const downloadsDir = process.env.AGENTOS_DOWNLOADS || join(homedir(), 'Downloads');
 
-// Path to AgentOS binary (set by plugin executor)
-const agentosPath = process.env.AGENTOS_BIN || 'agentos';
-
 /**
- * Execute input actions via AgentOS CLI.
- * This performs OS-level mouse/keyboard input that screen recorders can capture.
+ * Output a line of JSON to stdout and flush immediately.
+ * Used for streaming actions to the parent AgentOS process.
  */
-function executeInputActions(actions) {
-  if (!actions || actions.length === 0) {
-    return { success: true, actions_executed: 0 };
-  }
-  
-  try {
-    const actionsJson = JSON.stringify(actions);
-    const result = execSync(`"${agentosPath}" input --actions '${actionsJson}'`, {
-      encoding: 'utf-8',
-      timeout: 60000 // 60 second timeout
-    });
-    return JSON.parse(result);
-  } catch (error) {
-    return {
-      success: false,
-      error: `Failed to execute input actions: ${error.message}`,
-      stderr: error.stderr?.toString() || ''
-    };
-  }
+function streamAction(data) {
+  // Write JSON line and flush
+  process.stdout.write(JSON.stringify(data) + '\n');
 }
 
 // Collected diagnostics
@@ -155,17 +135,49 @@ async function getScreenCoordinates(page, selector, anchor = 'center') {
 }
 
 /**
- * Process a flow of actions, resolving selectors to screen coordinates.
- * Returns an array of resolved input actions for OS-level execution.
+ * Estimate duration of input actions for timing synchronization.
+ */
+function estimateInputDuration(inputActions) {
+  let total = 0;
+  for (const action of inputActions) {
+    switch (action.input) {
+      case 'move':
+        total += action.duration_ms || 500;
+        break;
+      case 'wait':
+        total += action.ms || 0;
+        break;
+      case 'type':
+        total += (action.text?.length || 0) * (action.delay_ms || 50);
+        break;
+      case 'click':
+      case 'double_click':
+        total += 100; // Small buffer for click
+        break;
+      default:
+        total += 50; // Default small buffer
+    }
+  }
+  return total;
+}
+
+/**
+ * Process a flow of actions with streaming execution.
+ * Each action's input commands are streamed to AgentOS for immediate execution.
+ * This allows the browser to stay open and page state to update between actions.
  */
 async function processFlow(page, actions) {
-  const resolvedActions = [];
+  let actionsProcessed = 0;
+  let inputActionsExecuted = 0;
   
   for (let i = 0; i < actions.length; i++) {
     const action = actions[i];
     const actionType = action.action;
     
     try {
+      // Collect input actions for this flow action
+      const inputActions = [];
+      
       switch (actionType) {
         case 'goto': {
           await page.goto(action.url, { waitUntil: 'networkidle', timeout: 30000 });
@@ -175,8 +187,7 @@ async function processFlow(page, actions) {
         }
         
         case 'wait': {
-          // Just add a wait action for OS-level execution
-          resolvedActions.push({ input: 'wait', ms: action.ms || 1000 });
+          inputActions.push({ input: 'wait', ms: action.ms || 1000 });
           break;
         }
         
@@ -191,21 +202,17 @@ async function processFlow(page, actions) {
           if (coords.error) {
             throw new Error(`Failed to get coordinates for ${action.selector}: ${coords.error}`);
           }
-          // Move to element
-          resolvedActions.push({
+          inputActions.push({
             input: 'move',
             x: coords.screenX,
             y: coords.screenY,
             duration_ms: action.duration_ms || 500,
             easing: 'ease_out'
           });
-          // Small pause before click
-          resolvedActions.push({ input: 'wait', ms: 50 });
-          // Click
-          resolvedActions.push({ input: 'click', button: action.button || 'left' });
-          // Wait after click for any effects
+          inputActions.push({ input: 'wait', ms: 50 });
+          inputActions.push({ input: 'click', button: action.button || 'left' });
           if (action.wait_after_ms) {
-            resolvedActions.push({ input: 'wait', ms: action.wait_after_ms });
+            inputActions.push({ input: 'wait', ms: action.wait_after_ms });
           }
           break;
         }
@@ -215,15 +222,15 @@ async function processFlow(page, actions) {
           if (coords.error) {
             throw new Error(`Failed to get coordinates for ${action.selector}: ${coords.error}`);
           }
-          resolvedActions.push({
+          inputActions.push({
             input: 'move',
             x: coords.screenX,
             y: coords.screenY,
             duration_ms: action.duration_ms || 500,
             easing: 'ease_out'
           });
-          resolvedActions.push({ input: 'wait', ms: 50 });
-          resolvedActions.push({ input: 'double_click', button: 'left' });
+          inputActions.push({ input: 'wait', ms: 50 });
+          inputActions.push({ input: 'double_click', button: 'left' });
           break;
         }
         
@@ -232,38 +239,35 @@ async function processFlow(page, actions) {
           if (coords.error) {
             throw new Error(`Failed to get coordinates for ${action.selector}: ${coords.error}`);
           }
-          resolvedActions.push({
+          inputActions.push({
             input: 'move',
             x: coords.screenX,
             y: coords.screenY,
             duration_ms: action.duration_ms || 500,
             easing: 'ease_out'
           });
-          // Wait while hovering (for tooltips, dropdowns, etc.)
           if (action.hover_ms) {
-            resolvedActions.push({ input: 'wait', ms: action.hover_ms });
+            inputActions.push({ input: 'wait', ms: action.hover_ms });
           }
           break;
         }
         
         case 'type': {
-          // First click on the element to focus it
           const coords = await getScreenCoordinates(page, action.selector, 'center');
           if (coords.error) {
             throw new Error(`Failed to get coordinates for ${action.selector}: ${coords.error}`);
           }
-          resolvedActions.push({
+          inputActions.push({
             input: 'move',
             x: coords.screenX,
             y: coords.screenY,
             duration_ms: action.duration_ms || 300,
             easing: 'ease_out'
           });
-          resolvedActions.push({ input: 'wait', ms: 50 });
-          resolvedActions.push({ input: 'click', button: 'left' });
-          resolvedActions.push({ input: 'wait', ms: 100 });
-          // Type the text
-          resolvedActions.push({
+          inputActions.push({ input: 'wait', ms: 50 });
+          inputActions.push({ input: 'click', button: 'left' });
+          inputActions.push({ input: 'wait', ms: 100 });
+          inputActions.push({
             input: 'type',
             text: action.text,
             delay_ms: action.delay_ms || 50
@@ -272,11 +276,10 @@ async function processFlow(page, actions) {
         }
         
         case 'scroll': {
-          // Scroll in the specified direction
           const direction = action.direction || 'down';
           const amount = action.amount || 300;
           const deltaY = direction === 'down' ? amount : -amount;
-          resolvedActions.push({
+          inputActions.push({
             input: 'scroll',
             delta_x: 0,
             delta_y: deltaY
@@ -285,7 +288,6 @@ async function processFlow(page, actions) {
         }
         
         case 'scroll_to': {
-          // Scroll element into view using Playwright, then record a small scroll action
           const element = page.locator(action.selector).first();
           await element.scrollIntoViewIfNeeded({ timeout: 5000 });
           await page.waitForTimeout(300);
@@ -293,7 +295,7 @@ async function processFlow(page, actions) {
         }
         
         case 'key': {
-          resolvedActions.push({
+          inputActions.push({
             input: 'key',
             key: action.key
           });
@@ -301,7 +303,7 @@ async function processFlow(page, actions) {
         }
         
         case 'key_combo': {
-          resolvedActions.push({
+          inputActions.push({
             input: 'key_combo',
             keys: action.keys
           });
@@ -311,20 +313,45 @@ async function processFlow(page, actions) {
         default:
           throw new Error(`Unknown flow action: ${actionType}`);
       }
+      
+      // Stream input actions to AgentOS for immediate execution
+      if (inputActions.length > 0) {
+        streamAction({ type: 'input', actions: inputActions });
+        inputActionsExecuted += inputActions.length;
+        
+        // Wait for the estimated duration so page can react before next action
+        const estimatedDuration = estimateInputDuration(inputActions);
+        if (estimatedDuration > 0) {
+          await page.waitForTimeout(estimatedDuration + 100); // Add small buffer
+        }
+      }
+      
+      actionsProcessed++;
+      
     } catch (error) {
+      // Stream error and done signal
+      streamAction({ 
+        type: 'error', 
+        message: `Action ${i} (${actionType}) failed: ${error.message}`,
+        actions_processed: actionsProcessed
+      });
+      streamAction({ type: 'done', success: false });
       return {
         success: false,
         error: `Action ${i} (${actionType}) failed: ${error.message}`,
-        actions_processed: i,
-        resolved_actions: resolvedActions
+        flow_actions_processed: actionsProcessed,
+        input_actions_executed: inputActionsExecuted
       };
     }
   }
   
+  // Signal completion
+  streamAction({ type: 'done', success: true });
+  
   return {
     success: true,
-    actions_processed: actions.length,
-    resolved_actions: resolvedActions
+    flow_actions_processed: actionsProcessed,
+    input_actions_executed: inputActionsExecuted
   };
 }
 
@@ -428,35 +455,13 @@ async function run() {
           throw new Error('actions must be an array');
         }
         
-        // Process flow to resolve coordinates
-        const flowResult = await processFlow(page, actions);
+        // Process flow with streaming execution
+        // Input actions are streamed to AgentOS via stdout as NDJSON
+        // AgentOS executes each batch immediately while browser stays open
+        result = await processFlow(page, actions);
         
-        if (!flowResult.success) {
-          result = flowResult;
-          console.log(JSON.stringify(result, null, 2));
-          break;
-        }
-        
-        // Execute the resolved input actions via OS-level input
-        if (flowResult.resolved_actions && flowResult.resolved_actions.length > 0) {
-          const inputResult = executeInputActions(flowResult.resolved_actions);
-          
-          result = {
-            success: inputResult.success,
-            flow_actions_processed: flowResult.actions_processed,
-            input_actions_executed: inputResult.actions_executed || 0,
-            error: inputResult.error || null
-          };
-        } else {
-          result = {
-            success: true,
-            flow_actions_processed: flowResult.actions_processed,
-            input_actions_executed: 0,
-            note: 'Flow contained no visible input actions'
-          };
-        }
-        
-        console.log(JSON.stringify(result, null, 2));
+        // Final result is also output for the MCP response
+        // (processFlow already streamed the done signal)
         break;
       }
       
