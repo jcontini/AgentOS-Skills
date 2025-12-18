@@ -219,10 +219,10 @@ actions:
     readonly: true  # Safe - no side effects
   
   delete_item:
-    # readonly: false (default) - requires confirmWrite
+    # readonly: false (default) - requires confirmAction
 ```
 
-Read-only actions can be called immediately. Non-readonly actions (create, update, delete) require `confirmWrite: true` and show a preview first.
+Read-only actions can be called immediately. Non-readonly actions (create, update, delete) require `confirmAction: true` and show a preview first.
 
 ### Descriptions
 
