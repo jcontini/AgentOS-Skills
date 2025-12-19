@@ -77,27 +77,21 @@ if [ -n "$BEARER_FILES" ]; then
     ERRORS=$((ERRORS + 1))
 fi
 
-# Check 5: run: blocks that make HTTP requests (should use rest: instead)
-echo "  Checking for run: blocks with HTTP requests..."
-RUN_HTTP_FILES=$(echo "$STAGED_FILES" | xargs grep -l 'run:.*curl\|run:.*wget\|run:.*http' 2>/dev/null || true)
-# More thorough check - look for run: followed by curl within the same action block
-for file in $STAGED_FILES; do
-    if grep -q 'run: |' "$file" 2>/dev/null; then
-        # Check if curl appears in run blocks (not in comments or docs)
-        if awk '/run: \|/,/^  [a-z]/' "$file" 2>/dev/null | grep -q 'curl '; then
-            if [ -z "$RUN_HTTP_FILES" ] || ! echo "$RUN_HTTP_FILES" | grep -q "$file"; then
-                RUN_HTTP_FILES="$RUN_HTTP_FILES $file"
-            fi
-        fi
-    fi
-done
-RUN_HTTP_FILES=$(echo "$RUN_HTTP_FILES" | xargs)  # trim whitespace
-if [ -n "$RUN_HTTP_FILES" ]; then
-    echo -e "${RED}✗ BLOCKED: run: block with curl/wget found in:${NC}"
-    echo "$RUN_HTTP_FILES" | tr ' ' '\n' | sed 's/^/    /'
+# Check 5: ANY curl/wget usage (all network calls must go through AgentOS)
+echo "  Checking for curl/wget usage..."
+CURL_FILES=$(echo "$STAGED_FILES" | xargs grep -l '\bcurl\b\|\bwget\b' 2>/dev/null || true)
+if [ -n "$CURL_FILES" ]; then
+    echo -e "${RED}✗ BLOCKED: curl/wget found in:${NC}"
+    echo "$CURL_FILES" | sed 's/^/    /'
     echo ""
-    echo -e "${YELLOW}  Fix: Convert to rest: or graphql: blocks${NC}"
-    echo "  run: blocks should only be used for local operations (no network calls)"
+    echo -e "${YELLOW}  Fix: Use AgentOS executors instead:${NC}"
+    echo "    • rest:   for authenticated REST API calls"
+    echo "    • http:   for unauthenticated HTTP requests (coming soon)"
+    echo ""
+    echo "  All network calls must go through AgentOS for:"
+    echo "    • Firewall interception"
+    echo "    • Activity logging"
+    echo "    • Security policy enforcement"
     echo ""
     ERRORS=$((ERRORS + 1))
 fi
