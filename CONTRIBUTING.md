@@ -25,7 +25,7 @@
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  EXECUTORS: rest: • graphql: • sql: • applescript: • swift:        │
+│  EXECUTORS: rest: • graphql: • sql: • applescript: • command:      │
 │  Location: AgentOS Core (Rust)                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -48,6 +48,7 @@
 | `graphql:` | GraphQL APIs |
 | `sql:` | Database queries |
 | `applescript:` | macOS automation |
+| `command:` | CLI tools (user-approved via firewall grants) |
 
 This ensures credentials never leave Rust core and all operations go through the firewall.
 
@@ -121,6 +122,36 @@ graphql:
 sql:
   query: "SELECT * FROM table LIMIT {{params.limit}}"
 ```
+
+### `command:`
+
+Run CLI tools. Security is handled by the firewall (built-in rules + user grants).
+
+```yaml
+command:
+  binary: tree
+  args:
+    - "-L"
+    - "2"
+    - "{{params.path}}"
+  timeout: 30  # seconds, optional
+```
+
+**How it works:**
+- Firewall blocks shells/interpreters/sudo by default (built-in rules)
+- Other binaries prompt user on first use: "Allow `tree` to run?"
+- User clicks **Always Allow** → grant saved, future calls auto-approved
+- Grants are per-app (App A can use `rm`, App B might not)
+
+**Blocked by firewall** (built-in rules, enabled by default):
+- Shells: `sh`, `bash`, `zsh`, `fish`
+- Interpreters: `python`, `node`, `ruby`, `perl`
+- Privilege escalation: `sudo`, `su`, `doas`
+
+**User-controlled** (via firewall grants):
+- `ls`, `cat`, `tree`, `rm`, `cp`, `mv`, `mkdir`
+- `ffmpeg`, `yt-dlp`, `pandoc`, `pdftotext`
+- Any other CLI tool on user's system
 
 ### Chained Executors
 ```yaml
