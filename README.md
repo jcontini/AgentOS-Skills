@@ -77,7 +77,7 @@ Returns: Unified task schema
 | Calendar | apple |
 | Contacts | apple |
 | Finance | copilot |
-| Web | exa, firecrawl |
+| Web | exa, firecrawl, reddit |
 
 ## Development
 

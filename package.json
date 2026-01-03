@@ -1,0 +1,17 @@
+{
+  "name": "agentos-integrations",
+  "version": "0.1.0",
+  "description": "Apps and connectors for AgentOS",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}

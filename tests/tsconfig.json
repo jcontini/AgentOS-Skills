@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "outDir": "./dist",
+    "rootDir": ".."
+  },
+  "include": [
+    "../apps/**/tests/**/*.ts",
+    "../connectors/**/tests/**/*.ts",
+    "./utils/**/*.ts",
+    "./setup.ts"
+  ]
+}
