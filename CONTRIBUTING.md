@@ -368,10 +368,91 @@ This ensures:
 
 ## Schema Conventions
 
-- **Flat structure** — no nested `metadata` objects
+### Field Naming
 - **snake_case** — `created_at`, `parent_id`
-- **Universal fields** — `id`, `source_connector`, `source_id`, `created_at`, `updated_at`
-- **Connectors map to schema** — transforms happen in connector YAML
+- **Flat structure** — avoid deep nesting in core fields
+
+### Universal Fields (every table should have)
+| Field | Type | Purpose |
+|-------|------|---------|
+| `id` | TEXT PRIMARY KEY | AgentOS internal UUID |
+| `source_connector` | TEXT | Which connector imported this |
+| `source_id` | TEXT | ID in the source system |
+| `created_at` | TEXT | When created in AgentOS |
+| `updated_at` | TEXT | Last modified |
+
+### The Metadata Pattern
+
+Apps support **multiple connectors** with different fields. Use this pattern:
+
+```sql
+CREATE TABLE items (
+  -- Core fields: universal, queryable, powers the UI
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  status TEXT,
+  rating INTEGER,
+  
+  -- User organization
+  tags JSON,                -- ["tag1", "tag2"] - simple array
+  
+  -- Source tracking
+  source_connector TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  
+  -- Connector-specific extras
+  metadata JSON,            -- Connector dumps its extras here
+  
+  UNIQUE(source_connector, source_id)
+);
+```
+
+**Core fields** = Universal across all connectors, queryable, shown in UI  
+**tags JSON** = User organization (shelves, categories, labels)  
+**metadata JSON** = Connector-specific data preserved but not in core schema
+
+### Metadata Examples
+
+```json
+// Books from Goodreads
+{"bookshelves": ["sci-fi", "favorites"], "average_rating": 4.2}
+
+// Books from StoryGraph  
+{"pace": "slow", "moods": ["dark", "emotional"], "content_warnings": ["violence"]}
+
+// Books from Hardcover
+{"edition_id": "abc123", "progress": 150, "owned": true}
+
+// Tasks from Linear
+{"cycle": {"id": "...", "name": "Sprint 5"}, "estimate": 3}
+
+// Tasks from Todoist
+{"todoist_priority": 4, "parent_id": "..."}
+```
+
+### Why This Works
+
+1. **Schema stays clean** — Core fields cover 90% of use cases
+2. **No data loss** — Connector-specific fields preserved in metadata
+3. **No schema changes** — New connectors add fields to metadata, not schema
+4. **Queryable** — Core fields are indexed and fast
+5. **Portable** — When syncing between connectors, core fields transfer, metadata is connector-specific
+
+### Connectors Map to Core Fields
+
+Transforms happen in connector YAML, not the app schema:
+
+```yaml
+# connectors/goodreads/books.yaml
+response:
+  mapping:
+    title: "[].Title"
+    status: "[].Exclusive Shelf | map_status"  # Transform to core status
+    tags: "[].Bookshelves | split:, "          # Custom shelves → tags
+    metadata:                                    # Extras go here
+      average_rating: "[].Average Rating"
+      bookshelves: "[].Bookshelves | split:, "
+```
 
 ---
 
