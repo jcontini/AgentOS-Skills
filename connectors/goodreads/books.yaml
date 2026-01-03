@@ -1,0 +1,17 @@
+# Goodreads connector for Books app
+# Import-only via CSV (Goodreads API was discontinued ~2020)
+
+actions:
+  import:
+    description: Import books from Goodreads CSV export
+    executor: rust
+    function: goodreads_import
+    params:
+      path:
+        type: string
+        required: true
+        description: Path to goodreads_library_export.csv
+      dry_run:
+        type: boolean
+        default: false
+        description: Preview without importing
