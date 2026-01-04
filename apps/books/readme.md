@@ -61,16 +61,22 @@ schema:
     date_finished:
       type: string
       description: When finished reading
-    shelves:
+    tags:
       type: array
       items: { type: string }
-      description: Custom shelf names
-    source_connector:
-      type: string
-      description: Which connector this came from
-    source_id:
-      type: string
-      description: ID in the source system
+      description: User organization tags (shelves, categories)
+    external_ids:
+      type: object
+      description: IDs in external systems (goodreads, hardcover, isbn, etc.)
+    metadata:
+      type: object
+      description: Connector-specific extras
+    created_at:
+      type: datetime
+      description: When record was created
+    updated_at:
+      type: datetime
+      description: When record was last updated
 
 actions:
   list:
