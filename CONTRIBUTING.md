@@ -595,20 +595,24 @@ CREATE TABLE IF NOT EXISTS movies (
 ```yaml
 actions:
   import:
-    csv:
-      path: "{{params.path}}"
-      response:
-        mapping:
-          title: "[].Name"
-          year: "[].Year | to_int"
-          rating: "[].Rating | to_int"
-          status: "'watched'"
-          source_connector: "'letterboxd'"
-          source_id: "[].Letterboxd URI"
-    app:
-      action: upsert
-      table: movies
-      on_conflict: [source_connector, source_id]
+    # Chained: csv reads file, app writes to database
+    - csv:
+        path: "{{params.path}}"
+        response:
+          mapping:
+            title: "[].Name"
+            year: "[].Year | to_int"
+            rating: "[].Rating | to_int"
+            status: "'watched'"
+            source_connector: "'letterboxd'"
+            source_id: "[].Letterboxd URI"
+      as: records
+    
+    - app:
+        action: upsert
+        table: movies
+        on_conflict: [source_connector, source_id]
+        data: "{{records}}"
 ```
 
 ### 3. Done!
