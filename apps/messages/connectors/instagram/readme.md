@@ -22,6 +22,12 @@ auth:
     - mid            # Machine ID
     - ig_did         # Device ID
   
+  # Default headers for all Instagram API requests
+  headers:
+    X-IG-App-ID: "936619743392459"
+    X-Requested-With: "XMLHttpRequest"
+    Referer: "https://www.instagram.com/direct/inbox/"
+  
   # Connect flow - all selectors verified Jan 2026
   connect:
     playwright:
@@ -194,10 +200,6 @@ actions:
     rest:
       method: GET
       url: "https://www.instagram.com/api/v1/direct_v2/inbox/"
-      headers:
-        X-IG-App-ID: "936619743392459"
-        X-Requested-With: "XMLHttpRequest"
-        Referer: "https://www.instagram.com/direct/inbox/"
       query:
         visual_message_return_type: "unseen"
         thread_message_limit: "10"
@@ -211,9 +213,11 @@ actions:
           type: "[].thread_type == 'private' ? 'direct' : 'group'"
           name: "[].thread_title"
           participants:
-            - id: "[].users[].pk"
-              name: "[].users[].full_name"
-              handle: "[].users[].username"
+            each: ".users[]"
+            map:
+              id: ".pk"
+              name: ".full_name"
+              handle: ".username"
           unread_count: "[].read_state"
           updated_at: "[].last_activity_at | divide: 1000000 | to_datetime"
           platform: "'instagram'"
@@ -240,9 +244,11 @@ actions:
           type: ".thread_type == 'private' ? 'direct' : 'group'"
           name: ".thread_title"
           participants:
-            - id: ".users[].pk"
-              name: ".users[].full_name"
-              handle: ".users[].username"
+            each: ".users[]"
+            map:
+              id: ".pk"
+              name: ".full_name"
+              handle: ".username"
           updated_at: ".last_activity_at | divide: 1000000 | to_datetime"
           platform: "'instagram'"
           connector: "'instagram'"
@@ -651,82 +657,58 @@ Full-featured Instagram DM connector with read and write support.
 
 ## 🚧 Development Status (Jan 2026)
 
-### ✅ What Works Reliably
+### ✅ What Works (Verified Jan 6, 2026)
 
-| Feature | Implementation | Notes |
-|---------|---------------|-------|
-| **Username/password auth** | `scripts/playwright-runner.ts` | Headless login - user enters creds in UI, Playwright logs in behind the scenes |
-| **Cookie + credential storage** | `Credential::Cookies` with login fields | Cookies AND username/password stored in system keychain for auto-reconnect |
-| **Auto-reconnect** | `reconnect_session` command | When session expires, re-logs in automatically using stored credentials |
-| **Reading conversations** | REST API `list_conversations` | Returns real DM threads with participants, unread counts |
-| **Cookie auth injection** | `inject_provider_auth()` in apps.rs | Auto-adds `Cookie` + `X-CSRFToken` headers |
-| **Custom headers** | `RestExecutor.headers` field | Per-action headers (X-IG-App-ID, X-Requested-With, Referer) |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Cookie-based auth** | ✅ Working | 5 cookies stored: sessionid, csrftoken, ds_user_id, mid, ig_did |
+| **Cookie auth injection** | ✅ Working | Auto-adds `Cookie` + `X-CSRFToken` headers to all requests |
+| **Custom headers** | ✅ Working | X-IG-App-ID, X-Requested-With, Referer on all actions |
+| **list_conversations** | ✅ Working | Returns real DM threads with names |
+| **list (messages)** | ✅ Working | Returns messages in a thread with reactions |
+| **get_conversation** | ✅ Working | Get thread details |
+| **search** | ✅ Untested | Should work (headers added) |
+| **get_unread** | ✅ Untested | Should work (headers added) |
+| **Add Account UI** | ✅ Working | Shows username/password form, triggers Playwright login |
 
-### 🔧 Known Issues to Fix
+### 🔧 Known Issues
 
-| Issue | Solution | Priority |
-|-------|----------|----------|
-| **Cursor MCP credential loading** | Works in standalone mode but fails via Cursor MCP. Likely path or timing issue. | High |
-| **2FA handling** | Playwright runner detects 2FA prompts, need to surface to UI | High |
-| **Other read actions need headers** | Copy header pattern from `list_conversations` to `get`, `list`, `search`, etc. | Medium |
-| **Session expiry detection** | Implement `error_detection` config parsing in Rust | Medium |
+| Issue | Notes | Priority |
+|-------|-------|----------|
+| **participants mapping** | Shows JSONPath templates instead of actual usernames (cosmetic) | Low |
+| **conversation_id literal** | Shows `{{params.conversation_id}}` in list response instead of actual ID | Low |
+| **MCP connection drops** | Occasional "Connection closed" errors, fixed by restart.sh | Medium |
+| **content null for media** | Expected - media messages (shared posts, stories) don't have text | - |
 
-### ❓ Research Needed / Unsure
+### ❓ Not Yet Tested
 
-| Topic | Notes |
+| Feature | Notes |
 |-------|-------|
-| **Sending messages** | Instagram **blocks REST API writes** (invalidates session immediately). Mautrix-meta uses MQTToT websocket protocol. This is a significant undertaking. |
-| **Session lifetime** | Sessions expire quickly with "suspicious" API patterns. Need to understand rate limits. |
-| **TOTP 2FA codes** | Could auto-generate if user provides their TOTP secret. Need to research. |
+| **Fresh auth flow** | Delete account → Add Account → Playwright login |
+| **2FA handling** | UI should prompt for code when needed |
+| **Auto-reconnect** | When session expires, should re-login with stored credentials |
+| **Write operations** | Instagram may block REST writes (see mautrix-meta for MQTToT) |
 
-### 📋 Next Steps (Prioritized)
+### 📋 Next Steps
 
-1. **Test username/password flow end-to-end**
-   - Verify headless Playwright login works with new credential flow
-   - Ensure cookies + credentials are stored properly
-   - Test auto-reconnect when session expires
+1. **Test fresh auth flow** (AGE-274 continued)
+   - Delete existing Instagram account
+   - Click Add Account → enter credentials
+   - Verify Playwright runs and stores cookies
+   - Handle 2FA if prompted
 
-2. **2FA UI flow**
-   - When `needs_2fa: true` returned, show 2FA input in UI
-   - User enters code, retry login with 2FA code
-   - Future: TOTP auto-generation if user provides secret
+2. **Fix response mapping bugs** (Low priority)
+   - Nested array mappings for participants
+   - Parameter interpolation in response templates
 
-3. **Fix Cursor MCP credential loading**
-   - Debug why credentials work in standalone but not via Cursor
-   - May need to ensure credential file path is absolute
+3. **Write operations** (Future - AGE-276+)
+   - Research if REST writes work or need MQTToT websocket
 
-4. **Complete read actions**
-   - Add headers to remaining read actions: `get_conversation`, `list`, `get`, `search`, `get_unread`
-   - Test each action works
+### 🔗 References
 
-5. **Write operations (future)**
-   - Research MQTToT protocol (see mautrix-meta `pkg/messagix/socket/`)
-   - May need websocket connection for real-time messaging
-   - Alternative: explore if GraphQL endpoints work for writes
-
-### 🔗 Key References
-
-- **mautrix-meta**: https://github.com/mautrix/meta/tree/main/pkg/messagix
-  - Uses MQTToT websocket for messaging
-  - Has task structures: `SendMessageTask`, `SendReactionTask`, `ThreadMarkReadTask`
-  - Error handling for challenges, consent, checkpoints
-  
-- **API Base URL**: `https://www.instagram.com/api/v1` (web API, not mobile `i.instagram.com`)
-
-- **Required Headers**:
-  ```
-  Cookie: sessionid=...; csrftoken=...; ds_user_id=...; mid=...; ig_did=...
-  X-CSRFToken: <same as csrftoken cookie>
-  X-IG-App-ID: 936619743392459
-  X-Requested-With: XMLHttpRequest
-  Referer: https://www.instagram.com/direct/inbox/
-  ```
-
-- **Key Files in AgentOS**:
-  - `scripts/playwright-runner.ts` - Headless browser login with credential support
-  - `src-tauri/src/credentials/mod.rs` - `Credential::Cookies` with optional username/password
-  - `src-tauri/src/apps.rs` - `inject_provider_auth()`, `RestExecutor.headers`
-  - `src-tauri/src/commands.rs` - `connect_with_credentials`, `reconnect_session` commands
+- **mautrix-meta**: https://github.com/mautrix/meta/tree/main/pkg/messagix (MQTToT protocol for writes)
+- **API Base URL**: `https://www.instagram.com/api/v1` (web API)
+- **Key Files**: `apps.rs` (inject_provider_auth), `commands.rs` (connect_with_credentials), `scripts/playwright-runner.ts`
 
 ---
 
