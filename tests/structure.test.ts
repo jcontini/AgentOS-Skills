@@ -245,16 +245,28 @@ describe('Connector Structure', () => {
 
 // =============================================================================
 // CONNECTOR YAML CONVENTION TESTS (v2026.01.05: refs-metadata)
+// NOTE: This section was for mapping.yaml files. AGE-267 migrated all to readme.md.
+// Keeping for reference in case mapping.yaml is reintroduced for specific use cases.
 // =============================================================================
 
 describe('Connector YAML Conventions', () => {
   const connectors = getConnectors();
   const versionDate = SCHEMA_VERSIONS['refs-metadata'];
+  
+  // Find connectors that still have mapping.yaml (should be none after AGE-267)
+  const connectorsWithMapping = connectors.filter(({ dir }) => 
+    existsSync(join(dir, 'mapping.yaml'))
+  );
 
-  for (const { app, connector, dir } of connectors) {
+  if (connectorsWithMapping.length === 0) {
+    it('all mapping.yaml migrated to readme.md (AGE-267 complete)', () => {
+      expect(connectorsWithMapping.length).toBe(0);
+    });
+    return;
+  }
+
+  for (const { app, connector, dir } of connectorsWithMapping) {
     const mappingPath = join(dir, 'mapping.yaml');
-    if (!existsSync(mappingPath)) continue;
-    
     const yaml = readFileSync(mappingPath, 'utf-8');
     const isNewFile = isFileNewerThan(mappingPath, versionDate);
 
