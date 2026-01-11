@@ -1,25 +1,46 @@
 /**
  * Contacts App Tests
  * 
- * Tests for the Contacts app CRUD operations including
- * scalar field updates and array field add/remove.
+ * Tests for the Apple Contacts connector with multi-account support.
  * 
- * Uses the test database and real Apple Contacts via AppleScript.
+ * Architecture:
+ * - accounts action: Lists available contact accounts (iCloud, local, work, etc.)
+ * - list/search: Require account parameter (use default account from accounts action)
+ * - create: Creates in specified account (defaults to default account)
+ * - Photo operations: set_photo, clear_photo, has_photo field
+ * 
+ * This follows the same pattern as Linear (teams) and Todoist (projects).
  */
 
 import { describe, it, expect, afterAll, beforeAll } from 'vitest';
 import { aos, testContent, cleanupTestData, TEST_PREFIX, sleep } from '../../../tests/utils/fixtures';
 
-// All tests use apple-contacts connector (Contacts is a pass-through app, not a data app)
 const CONNECTOR = 'apple-contacts';
 
 describe('Contacts App', () => {
   // Track contacts we create for cleanup
   let createdContactIds: string[] = [];
   
+  // Cache the default account for all tests
+  let defaultAccountId: string;
+  let allAccounts: any[];
+  
+  // Get accounts before all tests
+  beforeAll(async () => {
+    const accounts = await aos().call('Contacts', { 
+      action: 'accounts', 
+      connector: CONNECTOR 
+    });
+    allAccounts = accounts;
+    const defaultAccount = accounts.find((a: any) => a.is_default);
+    if (!defaultAccount) {
+      throw new Error('No default account found - cannot run tests');
+    }
+    defaultAccountId = defaultAccount.id;
+  });
+  
   // Clean up test data after all tests
   afterAll(async () => {
-    // Clean up contacts we created
     for (const id of createdContactIds) {
       try {
         await aos().call('Contacts', { action: 'delete', connector: CONNECTOR, params: { id }, execute: true });
@@ -29,56 +50,266 @@ describe('Contacts App', () => {
     }
   });
 
-  describe('List', () => {
-    it('can list all contacts', async () => {
-      const contacts = await aos().call('Contacts', { action: 'list', connector: CONNECTOR, params: {} });
+  // ============================================================
+  // Accounts Action Tests
+  // ============================================================
+  
+  describe('Accounts', () => {
+    it('returns list of available accounts', async () => {
+      const accounts = await aos().call('Contacts', { 
+        action: 'accounts', 
+        connector: CONNECTOR 
+      });
       
-      expect(contacts).toBeDefined();
+      expect(Array.isArray(accounts)).toBe(true);
+      expect(accounts.length).toBeGreaterThan(0);
+    });
+
+    it('each account has required fields', async () => {
+      for (const account of allAccounts) {
+        expect(account.id).toBeDefined();
+        expect(typeof account.id).toBe('string');
+        expect(account.name).toBeDefined();
+        expect(typeof account.name).toBe('string');
+        expect(typeof account.count).toBe('number');
+        expect(typeof account.is_default).toBe('boolean');
+      }
+    });
+
+    it('exactly one account is marked as default', async () => {
+      const defaults = allAccounts.filter((a: any) => a.is_default);
+      expect(defaults).toHaveLength(1);
+    });
+
+    it('default account has contacts', async () => {
+      const defaultAccount = allAccounts.find((a: any) => a.is_default);
+      expect(defaultAccount.count).toBeGreaterThan(0);
+    });
+
+    it('account IDs are valid container identifiers', async () => {
+      // Apple container IDs are typically UUIDs or specific format
+      for (const account of allAccounts) {
+        expect(account.id.length).toBeGreaterThan(0);
+        // ID should be usable in subsequent calls
+        expect(typeof account.id).toBe('string');
+      }
+    });
+  });
+
+  // ============================================================
+  // List Action Tests (with account parameter)
+  // ============================================================
+  
+  describe('List', () => {
+    it('requires account parameter', async () => {
+      // List with account parameter should work
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, limit: 5 } 
+      });
+      
       expect(Array.isArray(contacts)).toBe(true);
     });
 
+    it('respects limit parameter exactly', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, limit: 3 } 
+      });
+      
+      expect(contacts).toHaveLength(3);
+    });
+
+    it('respects limit of 1', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, limit: 1 } 
+      });
+      
+      expect(contacts).toHaveLength(1);
+    });
+
+    it('respects limit of 10', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, limit: 10 } 
+      });
+      
+      expect(contacts).toHaveLength(10);
+    });
+
+    it('defaults to sort by modified (most recent first)', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, limit: 10 } 
+      });
+      
+      expect(contacts.length).toBeGreaterThan(1);
+      
+      // Verify modified_at is in descending order
+      for (let i = 1; i < contacts.length; i++) {
+        const prevDate = new Date(contacts[i-1].modified_at).getTime();
+        const currDate = new Date(contacts[i].modified_at).getTime();
+        expect(prevDate).toBeGreaterThanOrEqual(currDate);
+      }
+    });
+
+    it('can sort by created', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, sort: 'created', limit: 5 } 
+      });
+      
+      expect(contacts.length).toBeGreaterThan(0);
+      expect(contacts[0].created_at).toBeDefined();
+    });
+
+    it('can sort by name', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, sort: 'name', limit: 5 } 
+      });
+      
+      expect(contacts.length).toBeGreaterThan(0);
+    });
+
     it('can filter by organization', async () => {
-      const contacts = await aos().call('Contacts', { action: 'list', connector: CONNECTOR, params: { organization: 'Apple' } });
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, organization: 'Apple', limit: 10 } 
+      });
       
       expect(Array.isArray(contacts)).toBe(true);
-      // If there are results, they should match the filter
       for (const contact of contacts) {
         expect(contact.organization?.toLowerCase()).toContain('apple');
       }
     });
 
-    it('respects limit parameter', async () => {
-      const contacts = await aos().call('Contacts', { action: 'list', connector: CONNECTOR, params: { limit: 5 } });
-      
-      expect(Array.isArray(contacts)).toBe(true);
-      // Note: SQL limit may not be working correctly in template interpolation
-      // For now, just verify we get results
-      expect(contacts.length).toBeGreaterThanOrEqual(0);
+    it('returns contacts with required fields', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, limit: 5 } 
+      });
+
+      for (const contact of contacts) {
+        expect(contact.id).toBeDefined();
+        expect(contact.connector).toBe('apple-contacts');
+        expect(contact.modified_at).toBeDefined();
+        expect(contact.created_at).toBeDefined();
+      }
     });
   });
 
+  // ============================================================
+  // Search Action Tests (with account parameter)
+  // ============================================================
+  
   describe('Search', () => {
-    it('can search contacts by name', async () => {
-      const contacts = await aos().call('Contacts', { action: 'search', connector: CONNECTOR, params: { query: 'John' } });
+    it('searches within specified account', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'search', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, query: 'a', limit: 5 } 
+      });
       
       expect(Array.isArray(contacts)).toBe(true);
     });
 
-    it('can search contacts by email', async () => {
-      const contacts = await aos().call('Contacts', { action: 'search', connector: CONNECTOR, params: { query: '@gmail.com' } });
+    it('respects limit parameter', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'search', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, query: 'a', limit: 3 } 
+      });
+      
+      expect(contacts.length).toBeLessThanOrEqual(3);
+    });
+
+    it('can search by email domain', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'search', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, query: '@gmail.com', limit: 5 } 
+      });
       
       expect(Array.isArray(contacts)).toBe(true);
     });
   });
 
-  describe('CRUD Operations', () => {
-    it('can create a simple contact', async () => {
+  // ============================================================
+  // Get Action Tests
+  // ============================================================
+  
+  describe('Get', () => {
+    it('returns full contact details', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, limit: 1 } 
+      });
+      
+      if (contacts.length === 0) {
+        console.log('  Skipping: no contacts in database');
+        return;
+      }
+
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: contacts[0].id } 
+      });
+
+      expect(contact.id).toBeDefined();
+      expect(Array.isArray(contact.phones)).toBe(true);
+      expect(Array.isArray(contact.emails)).toBe(true);
+      expect(Array.isArray(contact.urls)).toBe(true);
+      expect(Array.isArray(contact.addresses)).toBe(true);
+    });
+
+    it('includes has_photo boolean field', async () => {
+      const contacts = await aos().call('Contacts', { 
+        action: 'list', 
+        connector: CONNECTOR, 
+        params: { account: defaultAccountId, limit: 1 } 
+      });
+      
+      if (contacts.length === 0) {
+        console.log('  Skipping: no contacts available');
+        return;
+      }
+      
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: contacts[0].id } 
+      });
+      
+      expect(typeof contact.has_photo).toBe('boolean');
+    });
+  });
+
+  // ============================================================
+  // Create Action Tests (with account parameter)
+  // ============================================================
+  
+  describe('Create', () => {
+    it('creates contact in specified account', async () => {
       const firstName = testContent('CreateTest');
       
       const result = await aos().call('Contacts', { 
         action: 'create', 
         connector: CONNECTOR,
         params: { 
+          account: defaultAccountId,
           first_name: firstName,
           last_name: 'User',
           organization: 'Test Corp'
@@ -91,77 +322,71 @@ describe('Contacts App', () => {
       expect(result.status).toBe('created');
       
       createdContactIds.push(result.id);
-      
-      // Wait for sync
       await sleep(500);
       
       // Verify we can get it back
-      const contact = await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: result.id } });
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: result.id } 
+      });
       expect(contact.first_name).toBe(firstName);
       expect(contact.organization).toBe('Test Corp');
     });
 
-    it('can create contact then add multiple emails via add action', async () => {
-      const firstName = testContent('MultiEmail');
+    it('creates contact with all scalar fields', async () => {
+      const firstName = testContent('FullCreate');
       
-      // Create with basic info
       const result = await aos().call('Contacts', { 
         action: 'create', 
         connector: CONNECTOR,
         params: { 
+          account: defaultAccountId,
           first_name: firstName,
-          last_name: 'MultiValue',
+          last_name: 'Complete',
+          middle_name: 'Middle',
+          nickname: 'Nick',
+          organization: 'Full Test Corp',
+          job_title: 'Engineer',
+          department: 'Engineering',
+          notes: 'Test notes'
         },
         execute: true
       });
 
-      expect(result).toBeDefined();
       expect(result.id).toBeDefined();
       createdContactIds.push(result.id);
-      
       await sleep(500);
       
-      // Add first email
-      await aos().call('Contacts', { 
-        action: 'add', 
-        connector: CONNECTOR,
-        params: { id: result.id, emails: { label: 'work', value: 'work@test.com' } },
-        execute: true
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: result.id } 
       });
-      
-      await sleep(300);
-      
-      // Add second email  
-      await aos().call('Contacts', { 
-        action: 'add', 
-        connector: CONNECTOR,
-        params: { id: result.id, emails: { label: 'home', value: 'home@test.com' } },
-        execute: true
-      });
-      
-      await sleep(500);
-      
-      // Verify both emails were added
-      const contact = await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: result.id } });
-      expect(contact.emails).toHaveLength(2);
-      expect(contact.emails.map((e: any) => e.value)).toContain('work@test.com');
-      expect(contact.emails.map((e: any) => e.value)).toContain('home@test.com');
+      expect(contact.first_name).toBe(firstName);
+      expect(contact.last_name).toBe('Complete');
+      expect(contact.organization).toBe('Full Test Corp');
+      expect(contact.job_title).toBe('Engineer');
     });
+  });
 
+  // ============================================================
+  // Update Action Tests
+  // ============================================================
+  
+  describe('Update', () => {
     it('can update scalar fields', async () => {
       const firstName = testContent('UpdateTest');
       
-      // Create contact
       const created = await aos().call('Contacts', { 
         action: 'create', 
         connector: CONNECTOR,
-        params: { first_name: firstName, last_name: 'Original' },
+        params: { account: defaultAccountId, first_name: firstName, last_name: 'Original' },
         execute: true
       });
       createdContactIds.push(created.id);
       await sleep(500);
       
-      // Update it
       const updated = await aos().call('Contacts', { 
         action: 'update', 
         connector: CONNECTOR,
@@ -177,27 +402,34 @@ describe('Contacts App', () => {
       expect(updated.status).toBe('updated');
       await sleep(500);
       
-      // Verify update
-      const contact = await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: created.id } });
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
       expect(contact.organization).toBe('Updated Corp');
       expect(contact.job_title).toBe('Senior Engineer');
       expect(contact.notes).toBe('Updated via test');
     });
+  });
 
-    it('can add email to existing contact', async () => {
+  // ============================================================
+  // Add/Remove Array Fields Tests
+  // ============================================================
+  
+  describe('Array Fields (add/remove)', () => {
+    it('can add email to contact', async () => {
       const firstName = testContent('AddEmail');
       
-      // Create contact without email
       const created = await aos().call('Contacts', { 
         action: 'create', 
         connector: CONNECTOR,
-        params: { first_name: firstName },
+        params: { account: defaultAccountId, first_name: firstName },
         execute: true
       });
       createdContactIds.push(created.id);
       await sleep(500);
       
-      // Add email
       const added = await aos().call('Contacts', { 
         action: 'add', 
         connector: CONNECTOR,
@@ -212,26 +444,65 @@ describe('Contacts App', () => {
       expect(added.added).toContain('email');
       await sleep(500);
       
-      // Verify
-      const contact = await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: created.id } });
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
       expect(contact.emails).toHaveLength(1);
       expect(contact.emails[0].value).toBe('added@test.com');
     });
 
-    it('can add phone to existing contact', async () => {
+    it('can add multiple emails', async () => {
+      const firstName = testContent('MultiEmail');
+      
+      const result = await aos().call('Contacts', { 
+        action: 'create', 
+        connector: CONNECTOR,
+        params: { account: defaultAccountId, first_name: firstName, last_name: 'MultiValue' },
+        execute: true
+      });
+      createdContactIds.push(result.id);
+      await sleep(500);
+      
+      await aos().call('Contacts', { 
+        action: 'add', 
+        connector: CONNECTOR,
+        params: { id: result.id, emails: { label: 'work', value: 'work@test.com' } },
+        execute: true
+      });
+      await sleep(300);
+      
+      await aos().call('Contacts', { 
+        action: 'add', 
+        connector: CONNECTOR,
+        params: { id: result.id, emails: { label: 'home', value: 'home@test.com' } },
+        execute: true
+      });
+      await sleep(500);
+      
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: result.id } 
+      });
+      expect(contact.emails).toHaveLength(2);
+      expect(contact.emails.map((e: any) => e.value)).toContain('work@test.com');
+      expect(contact.emails.map((e: any) => e.value)).toContain('home@test.com');
+    });
+
+    it('can add phone to contact', async () => {
       const firstName = testContent('AddPhone');
       
-      // Create contact without phone
       const created = await aos().call('Contacts', { 
         action: 'create', 
         connector: CONNECTOR,
-        params: { first_name: firstName },
+        params: { account: defaultAccountId, first_name: firstName },
         execute: true
       });
       createdContactIds.push(created.id);
       await sleep(500);
       
-      // Add phone
       const added = await aos().call('Contacts', { 
         action: 'add', 
         connector: CONNECTOR,
@@ -246,26 +517,103 @@ describe('Contacts App', () => {
       expect(added.added).toContain('phone');
       await sleep(500);
       
-      // Verify
-      const contact = await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: created.id } });
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
       expect(contact.phones.length).toBeGreaterThanOrEqual(1);
       expect(contact.phones.some((p: any) => p.value.includes('5125559999'))).toBe(true);
     });
 
-    it('can remove email from contact', async () => {
-      const firstName = testContent('RemoveEmail');
+    it('can add URL to contact', async () => {
+      const firstName = testContent('AddURL');
       
-      // Create contact
       const created = await aos().call('Contacts', { 
         action: 'create', 
         connector: CONNECTOR,
-        params: { first_name: firstName },
+        params: { account: defaultAccountId, first_name: firstName },
         execute: true
       });
       createdContactIds.push(created.id);
       await sleep(500);
       
-      // Add email via add action
+      await aos().call('Contacts', { 
+        action: 'add', 
+        connector: CONNECTOR,
+        params: { 
+          id: created.id, 
+          urls: { label: 'LinkedIn', value: 'https://linkedin.com/in/testuser' } 
+        },
+        execute: true
+      });
+      await sleep(500);
+      
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
+      expect(contact.urls.length).toBeGreaterThanOrEqual(1);
+      expect(contact.urls.some((u: any) => u.value.includes('linkedin.com'))).toBe(true);
+    });
+
+    it('can add multiple URLs (LinkedIn, Instagram)', async () => {
+      const firstName = testContent('MultiURL');
+      
+      const created = await aos().call('Contacts', { 
+        action: 'create', 
+        connector: CONNECTOR,
+        params: { account: defaultAccountId, first_name: firstName },
+        execute: true
+      });
+      createdContactIds.push(created.id);
+      await sleep(500);
+      
+      await aos().call('Contacts', { 
+        action: 'add', 
+        connector: CONNECTOR,
+        params: { 
+          id: created.id, 
+          urls: { label: 'LinkedIn', value: 'https://linkedin.com/in/testuser' } 
+        },
+        execute: true
+      });
+      await sleep(300);
+      
+      await aos().call('Contacts', { 
+        action: 'add', 
+        connector: CONNECTOR,
+        params: { 
+          id: created.id, 
+          urls: { label: 'Instagram', value: 'https://instagram.com/testuser' } 
+        },
+        execute: true
+      });
+      await sleep(500);
+      
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
+      expect(contact.urls).toHaveLength(2);
+      expect(contact.urls.some((u: any) => u.value.includes('linkedin.com'))).toBe(true);
+      expect(contact.urls.some((u: any) => u.value.includes('instagram.com'))).toBe(true);
+    });
+
+    it('can remove email from contact', async () => {
+      const firstName = testContent('RemoveEmail');
+      
+      const created = await aos().call('Contacts', { 
+        action: 'create', 
+        connector: CONNECTOR,
+        params: { account: defaultAccountId, first_name: firstName },
+        execute: true
+      });
+      createdContactIds.push(created.id);
+      await sleep(500);
+      
       await aos().call('Contacts', { 
         action: 'add', 
         connector: CONNECTOR,
@@ -274,11 +622,13 @@ describe('Contacts App', () => {
       });
       await sleep(500);
       
-      // Verify email exists
-      let contact = await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: created.id } });
+      let contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
       expect(contact.emails).toHaveLength(1);
       
-      // Remove email
       const removed = await aos().call('Contacts', { 
         action: 'remove', 
         connector: CONNECTOR,
@@ -289,29 +639,84 @@ describe('Contacts App', () => {
         execute: true
       });
       
-      expect(removed).toBeDefined();
       expect(removed.status).toBe('removed');
       expect(removed.removed).toContain('email');
       await sleep(500);
       
-      // Verify removal
-      contact = await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: created.id } });
+      contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
       expect(contact.emails).toHaveLength(0);
     });
 
-    it('can delete a contact', async () => {
-      const firstName = testContent('DeleteTest');
+    it('can remove URL from contact', async () => {
+      const firstName = testContent('RemoveURL');
       
-      // Create contact
       const created = await aos().call('Contacts', { 
         action: 'create', 
         connector: CONNECTOR,
-        params: { first_name: firstName },
+        params: { account: defaultAccountId, first_name: firstName },
+        execute: true
+      });
+      createdContactIds.push(created.id);
+      await sleep(500);
+      
+      await aos().call('Contacts', { 
+        action: 'add', 
+        connector: CONNECTOR,
+        params: { 
+          id: created.id, 
+          urls: { label: 'homepage', value: 'https://example.com' } 
+        },
         execute: true
       });
       await sleep(500);
       
-      // Delete it
+      let contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
+      expect(contact.urls).toHaveLength(1);
+      
+      await aos().call('Contacts', { 
+        action: 'remove', 
+        connector: CONNECTOR,
+        params: { 
+          id: created.id, 
+          urls: { value: 'https://example.com' } 
+        },
+        execute: true
+      });
+      await sleep(500);
+      
+      contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
+      expect(contact.urls).toHaveLength(0);
+    });
+  });
+
+  // ============================================================
+  // Delete Action Tests
+  // ============================================================
+  
+  describe('Delete', () => {
+    it('can delete a contact', async () => {
+      const firstName = testContent('DeleteTest');
+      
+      const created = await aos().call('Contacts', { 
+        action: 'create', 
+        connector: CONNECTOR,
+        params: { account: defaultAccountId, first_name: firstName },
+        execute: true
+      });
+      await sleep(500);
+      
       const deleted = await aos().call('Contacts', { 
         action: 'delete', 
         connector: CONNECTOR,
@@ -321,14 +726,15 @@ describe('Contacts App', () => {
       
       expect(deleted.status).toBe('deleted');
       
-      // Don't add to cleanup list - already deleted
-      
       // Verify it's gone
       await sleep(500);
       try {
-        await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: created.id } });
-        // If we get here without error, the contact still exists - fail
-        expect(true).toBe(false);
+        await aos().call('Contacts', { 
+          action: 'get', 
+          connector: CONNECTOR, 
+          params: { id: created.id } 
+        });
+        expect.fail('Contact should have been deleted');
       } catch (e) {
         // Expected - contact should not be found
         expect(true).toBe(true);
@@ -336,37 +742,128 @@ describe('Contacts App', () => {
     });
   });
 
-  describe('Data Integrity', () => {
-    it('contacts have required fields', async () => {
-      const contacts = await aos().call('Contacts', { action: 'list', connector: CONNECTOR, params: { limit: 10 } });
-
-      for (const contact of contacts) {
-        // ID is always required
-        expect(contact.id).toBeDefined();
-        
-        // Connector should be set
-        expect(contact.connector).toBe('apple-contacts');
-        
-        // Note: Some contacts may not have name/org if they only have email/phone
-        // We just verify the structure is correct
-      }
+  // ============================================================
+  // Photo Operations Tests
+  // ============================================================
+  
+  describe('Photo Operations', () => {
+    it('new contact has no photo', async () => {
+      const firstName = testContent('NoPhoto');
+      
+      const created = await aos().call('Contacts', { 
+        action: 'create', 
+        connector: CONNECTOR,
+        params: { account: defaultAccountId, first_name: firstName },
+        execute: true
+      });
+      createdContactIds.push(created.id);
+      await sleep(500);
+      
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
+      expect(contact.has_photo).toBe(false);
     });
 
-    it('get returns full contact with arrays', async () => {
-      const contacts = await aos().call('Contacts', { action: 'list', connector: CONNECTOR, params: { limit: 1 } });
-      if (contacts.length === 0) {
-        console.log('  Skipping: no contacts in database');
+    it('can set photo on contact', async () => {
+      const firstName = testContent('SetPhoto');
+      
+      const created = await aos().call('Contacts', { 
+        action: 'create', 
+        connector: CONNECTOR,
+        params: { account: defaultAccountId, first_name: firstName },
+        execute: true
+      });
+      createdContactIds.push(created.id);
+      await sleep(500);
+      
+      // Use a test image - create a simple one if needed
+      const fs = await import('fs');
+      const path = await import('path');
+      const testImagePath = path.join(process.env.HOME || '', '.agentos/test-photo.jpg');
+      
+      // Skip if no test image available
+      if (!fs.existsSync(testImagePath)) {
+        console.log('  Skipping: create ~/.agentos/test-photo.jpg to test photo operations');
         return;
       }
+      
+      const result = await aos().call('Contacts', { 
+        action: 'set_photo', 
+        connector: CONNECTOR,
+        params: { id: created.id, path: testImagePath },
+        execute: true
+      });
+      
+      expect(result.status).toBe('photo_set');
+      await sleep(500);
+      
+      const contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
+      expect(contact.has_photo).toBe(true);
+    });
 
-      const contact = await aos().call('Contacts', { action: 'get', connector: CONNECTOR, params: { id: contacts[0].id } });
-
-      expect(contact.id).toBeDefined();
-      // Arrays should be present (even if empty)
-      expect(Array.isArray(contact.phones)).toBe(true);
-      expect(Array.isArray(contact.emails)).toBe(true);
-      expect(Array.isArray(contact.urls)).toBe(true);
-      expect(Array.isArray(contact.addresses)).toBe(true);
+    it('can clear photo from contact', async () => {
+      const firstName = testContent('ClearPhoto');
+      
+      const created = await aos().call('Contacts', { 
+        action: 'create', 
+        connector: CONNECTOR,
+        params: { account: defaultAccountId, first_name: firstName },
+        execute: true
+      });
+      createdContactIds.push(created.id);
+      await sleep(500);
+      
+      const fs = await import('fs');
+      const path = await import('path');
+      const testImagePath = path.join(process.env.HOME || '', '.agentos/test-photo.jpg');
+      
+      if (!fs.existsSync(testImagePath)) {
+        console.log('  Skipping: create ~/.agentos/test-photo.jpg to test photo operations');
+        return;
+      }
+      
+      // Set photo first
+      await aos().call('Contacts', { 
+        action: 'set_photo', 
+        connector: CONNECTOR,
+        params: { id: created.id, path: testImagePath },
+        execute: true
+      });
+      await sleep(500);
+      
+      // Verify photo is set
+      let contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
+      expect(contact.has_photo).toBe(true);
+      
+      // Clear photo
+      const result = await aos().call('Contacts', { 
+        action: 'clear_photo', 
+        connector: CONNECTOR,
+        params: { id: created.id },
+        execute: true
+      });
+      
+      expect(result.status).toBe('photo_cleared');
+      await sleep(500);
+      
+      // Verify photo is gone
+      contact = await aos().call('Contacts', { 
+        action: 'get', 
+        connector: CONNECTOR, 
+        params: { id: created.id } 
+      });
+      expect(contact.has_photo).toBe(false);
     });
   });
 });
