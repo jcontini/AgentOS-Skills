@@ -1,7 +1,7 @@
 ---
 id: apple-contacts
 name: Apple Contacts
-description: Access macOS Calendar and Contacts via native APIs
+description: Access macOS Contacts via native APIs with multi-account support
 icon: icon.png
 color: "#000000"
 
@@ -9,40 +9,100 @@ website: https://www.apple.com/macos/
 platform: macos
 
 # No auth block = no credentials needed (local system access)
-# Uses macOS permissions: Calendar, Contacts
+# Uses macOS permissions: Contacts
 
 instructions: |
-  Apple provider accesses local macOS Calendar and Contacts.
+  Apple Contacts connector with multi-account support (iCloud, local, work, etc.).
   
   **Requirements:**
   - macOS only
-  - Grant permissions in System Settings → Privacy & Security:
-    - Calendars → Full Access for Cursor/Terminal
-    - Contacts → Allow access for Cursor/Terminal
+  - Grant permissions in System Settings → Privacy & Security → Contacts
   
-  **Calendar notes:**
-  - All calendars configured in macOS Calendar.app are accessible (iCloud, Google, etc.)
-  - Subscribed calendars (ICS feeds like US Holidays) are read-only
-  - Recurring events: updates/deletes only affect the single occurrence
-  - Times use system timezone
+  **Multi-Account Support:**
+  macOS can have multiple contact accounts (iCloud, local, Exchange, etc.).
   
-  **Contacts notes:**
+  **Always call `accounts` first** to get available accounts and find the default.
+  Then use the account ID in list/search/create calls.
+  
+  Example workflow:
+  1. `Contacts.accounts()` → Find account with `is_default: true`
+  2. `Contacts.list(account: "ABC-123-UUID", limit: 10)`
+  3. `Contacts.create(account: "ABC-123-UUID", first_name: "John", ...)`
+  
+  **Notes:**
   - Contact IDs can change after iCloud sync - query by name after create
   - Phone numbers are auto-normalized: 5125551234 → +15125551234
   - URL labels are auto-detected: github.com → "GitHub"
 
-# Action implementations (merged from mapping.yaml)
+# Action implementations
 actions:
+  accounts:
+    label: "List accounts"
+    description: List available contact accounts/containers (iCloud, local, work, etc.)
+    readonly: true
+    swift:
+      script: |
+        import Contacts
+        import Foundation
+        
+        let store = CNContactStore()
+        let semaphore = DispatchSemaphore(value: 0)
+        var accessGranted = false
+        
+        store.requestAccess(for: .contacts) { granted, _ in
+            accessGranted = granted
+            semaphore.signal()
+        }
+        semaphore.wait()
+        
+        guard accessGranted else {
+            fputs("{\"error\": \"Contacts access denied. Grant in System Settings > Privacy > Contacts\"}\n", stderr)
+            exit(1)
+        }
+        
+        let defaultId = store.defaultContainerIdentifier()
+        let containers = try! store.containers(matching: nil)
+        var results: [[String: Any]] = []
+        
+        for c in containers {
+            let pred = CNContact.predicateForContactsInContainer(withIdentifier: c.identifier)
+            let count = try! store.unifiedContacts(matching: pred, keysToFetch: []).count
+            // Strip :ABAccount suffix to match directory names in AddressBook/Sources/
+            let dirId = c.identifier.replacingOccurrences(of: ":ABAccount", with: "")
+            let defaultDirId = defaultId.replacingOccurrences(of: ":ABAccount", with: "")
+            results.append([
+                "id": dirId,
+                "name": c.name,
+                "count": count,
+                "is_default": dirId == defaultDirId
+            ])
+        }
+        
+        if let jsonData = try? JSONSerialization.data(withJSONObject: results, options: []),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            print(jsonString)
+        } else {
+            print("[]")
+        }
+      response:
+        mapping:
+          id: "[].id"
+          name: "[].name"
+          count: "[].count"
+          is_default: "[].is_default"
+          connector: "'apple-contacts'"
+
   list:
     label: "List contacts"
-    description: List contacts with optional search and sorting
+    description: List contacts from a specific account with optional filtering and sorting
     params:
+      account: { type: string, required: true, description: "Account ID from accounts action" }
       query: { type: string, description: "Search by name, email, phone, or organization" }
       organization: { type: string, description: "Filter by organization" }
-      sort: { type: string, description: "Sort by: name (default), modified, created" }
+      sort: { type: string, default: "modified", description: "Sort by: modified (default), created, name" }
       limit: { type: number, default: 50 }
     sql:
-      database: "~/Library/Application Support/AddressBook/Sources/*/AddressBook-v22.abcddb"
+      database: "~/Library/Application Support/AddressBook/Sources/{{params.account}}/AddressBook-v22.abcddb"
       query: |
         SELECT 
           ZUNIQUEID as id,
@@ -69,12 +129,12 @@ actions:
             OR ZORGANIZATION LIKE '%{{params.organization}}%'
           )
         ORDER BY 
-          CASE '{{params.sort}}'
+          CASE '{{params.sort | default: modified}}'
             WHEN 'modified' THEN ZMODIFICATIONDATE
             WHEN 'created' THEN ZCREATIONDATE
             ELSE NULL
           END DESC,
-          CASE WHEN '{{params.sort}}' NOT IN ('modified', 'created') THEN COALESCE(ZLASTNAME, ZFIRSTNAME, ZORGANIZATION) END
+          CASE WHEN '{{params.sort | default: modified}}' NOT IN ('modified', 'created') THEN COALESCE(ZLASTNAME, ZFIRSTNAME, ZORGANIZATION) END
         LIMIT {{params.limit | default: 50}}
       response:
         mapping:
@@ -93,12 +153,13 @@ actions:
 
   search:
     label: "Search contacts"
-    description: Search contacts by any text
+    description: Search contacts by any text within a specific account
     params:
+      account: { type: string, required: true, description: "Account ID from accounts action" }
       query: { type: string, required: true, description: "Search text" }
       limit: { type: number, default: 50 }
     sql:
-      database: "~/Library/Application Support/AddressBook/Sources/*/AddressBook-v22.abcddb"
+      database: "~/Library/Application Support/AddressBook/Sources/{{params.account}}/AddressBook-v22.abcddb"
       query: |
         SELECT DISTINCT
           r.ZUNIQUEID as id,
@@ -132,7 +193,7 @@ actions:
 
   get:
     label: "Get contact"
-    description: Get full contact details by ID
+    description: Get full contact details by ID including has_photo field
     params:
       id: { type: string, required: true, description: "Contact ID (ZUNIQUEID)" }
     applescript:
@@ -155,6 +216,7 @@ actions:
             set pDept to department of p
             set pNote to note of p
             set pBday to birth date of p
+            set pImage to image of p
             
             if pFirst is missing value then set pFirst to ""
             if pLast is missing value then set pLast to ""
@@ -164,6 +226,9 @@ actions:
             if pJob is missing value then set pJob to ""
             if pDept is missing value then set pDept to ""
             if pNote is missing value then set pNote to ""
+            
+            set hasPhoto to "false"
+            if pImage is not missing value then set hasPhoto to "true"
             
             set bdayStr to ""
             if pBday is not missing value then
@@ -221,6 +286,7 @@ actions:
             set output to output & "\"department\":\"" & pDept & "\","
             set output to output & "\"birthday\":\"" & bdayStr & "\","
             set output to output & "\"notes\":\"" & pNote & "\","
+            set output to output & "\"has_photo\":" & hasPhoto & ","
             set output to output & "\"phones\":[" & phoneList & "],"
             set output to output & "\"emails\":[" & emailList & "],"
             set output to output & "\"urls\":[" & urlList & "],"
@@ -245,6 +311,7 @@ actions:
           department: ".department"
           birthday: ".birthday"
           notes: ".notes"
+          has_photo: ".has_photo"
           phones: ".phones"
           emails: ".emails"
           urls: ".urls"
@@ -253,9 +320,9 @@ actions:
 
   create:
     label: "Create contact"
-    description: Create a new contact with full schema support
+    description: Create a new contact in a specific account
     params:
-      # Scalar fields
+      account: { type: string, required: true, description: "Account ID to create contact in" }
       first_name: { type: string, description: "First name" }
       last_name: { type: string, description: "Last name" }
       middle_name: { type: string, description: "Middle name" }
@@ -265,7 +332,6 @@ actions:
       department: { type: string, description: "Department" }
       birthday: { type: string, description: "Birthday (YYYY-MM-DD)" }
       notes: { type: string, description: "Notes" }
-      # Array fields (JSON strings)
       phones: { type: array, description: "Phones [{label, value}]" }
       emails: { type: array, description: "Emails [{label, value}]" }
       urls: { type: array, description: "URLs [{label, value}]" }
@@ -549,68 +615,149 @@ actions:
           status: ".status"
           name: ".name"
           connector: ".connector"
+
+  set_photo:
+    label: "Set contact photo"
+    description: Set a contact's photo from a local file path
+    params:
+      id: { type: string, required: true, description: "Contact ID" }
+      path: { type: string, required: true, description: "Local file path to image (JPEG, PNG)" }
+    applescript:
+      script: |
+        set contactId to "{{params.id}}"
+        if contactId does not end with ":ABPerson" then
+          set contactId to contactId & ":ABPerson"
+        end if
+        
+        tell application "Contacts"
+          try
+            set p to person id contactId
+            set image of p to (read (POSIX file "{{params.path}}") as JPEG picture)
+            save
+            return "{\"id\":\"" & id of p & "\",\"status\":\"photo_set\",\"connector\":\"apple-contacts\"}"
+          on error errMsg
+            return "{\"error\":\"" & errMsg & "\"}"
+          end try
+        end tell
+      response:
+        mapping:
+          id: ".id"
+          status: ".status"
+          connector: ".connector"
+
+  clear_photo:
+    label: "Clear contact photo"
+    description: Remove a contact's photo
+    params:
+      id: { type: string, required: true, description: "Contact ID" }
+    applescript:
+      script: |
+        set contactId to "{{params.id}}"
+        if contactId does not end with ":ABPerson" then
+          set contactId to contactId & ":ABPerson"
+        end if
+        
+        tell application "Contacts"
+          try
+            set p to person id contactId
+            delete image of p
+            save
+            return "{\"id\":\"" & id of p & "\",\"status\":\"photo_cleared\",\"connector\":\"apple-contacts\"}"
+          on error errMsg
+            return "{\"error\":\"" & errMsg & "\"}"
+          end try
+        end tell
+      response:
+        mapping:
+          id: ".id"
+          status: ".status"
+          connector: ".connector"
 ---
 
-# Apple
+# Apple Contacts
 
-Access macOS Calendar and Contacts via native APIs.
+Access macOS Contacts via native APIs with multi-account support.
 
 ## Requirements
 
 - **macOS only**
-- **Permissions required** in System Settings → Privacy & Security:
-  - Calendars → Full Access
-  - Contacts → Allow
+- **Permissions required** in System Settings → Privacy & Security → Contacts
 
 ### Granting Permissions
 
 1. Open **System Settings → Privacy & Security**
-2. Click **Calendars** (or **Contacts**)
+2. Click **Contacts**
 3. Enable access for the app (Cursor, Terminal, etc.)
 4. Restart the app if needed
 
-## Tools
+## Multi-Account Support
 
-| Tool | Implementation | Notes |
-|------|----------------|-------|
-| Calendar | EventKit (Swift binary) | Full CRUD, attendees, recurrence |
-| Contacts | SQL reads + AppleScript writes | Full CRUD, photos |
+macOS can have multiple contact accounts (iCloud, local, Exchange, etc.). Use the `accounts` action to list available accounts and find the default one.
 
-## Why This Architecture?
+### Example Workflow
 
-### Calendar: EventKit
+```
+1. Contacts.accounts()  
+   → Returns: [{id: "ABC-123", name: "iCloud", count: 500, is_default: true}, ...]
 
-AppleScript calendar access is limited:
-- Can't handle async permission prompts (macOS 14+)
-- Recurrence rules are difficult to parse
-- No attendee access
-- Slow for large calendars
+2. Contacts.list(account: "ABC-123", limit: 10)
+   → Returns: 10 most recently modified contacts from that account
 
-EventKit provides full access via a compiled Swift helper binary.
+3. Contacts.create(account: "ABC-123", first_name: "John", last_name: "Doe")
+   → Creates contact in the specified account
+```
 
-### Contacts: AppleScript
+## Features
 
-The Contacts framework (`CNContact`) has known bugs:
-- `mutableCopy()` doesn't preserve notes
-- Social profiles get corrupted
-- Unreliable iCloud sync
+- **accounts** - List available contact accounts (iCloud, local, work, etc.)
+- **list** - List contacts with sorting (modified, created, name)
+- **search** - Search contacts by name, email, phone, or organization
+- **get** - Get full contact details including `has_photo` field
+- **create** - Create new contacts in specific account
+- **update** - Update contact scalar fields
+- **add/remove** - Add or remove emails, phones, URLs, addresses
+- **delete** - Delete contacts
+- **set_photo** - Set contact photo from file path
+- **clear_photo** - Remove contact photo
 
-AppleScript is Apple's canonical interface - changes sync reliably with iCloud.
-SQLite is used for reads (fast, indexed) while AppleScript handles writes.
+## Architecture
 
-## Calendar Features
+| Action | Executor | Notes |
+|--------|----------|-------|
+| accounts | Swift (CNContactStore) | Lists contact containers |
+| list/search | SQL | Fast indexed queries on AddressBook DB |
+| get/create/update/add/remove/delete | AppleScript | Reliable iCloud sync |
+| set_photo/clear_photo | AppleScript | Native photo handling |
 
-- List events with date range, calendar filter, search
-- Get event details including attendees and recurrence
-- Create events (timed or all-day)
-- Update events (title, time, location, calendar)
-- Delete events
-- List all calendars
+### Why This Mix?
 
-## Contacts Features
+**Swift for accounts:** CNContactStore is the only way to programmatically list contact containers and identify the default account.
 
-- Search/list contacts
-- Get full contact details (all phones, emails, URLs)
-- Create contacts with auto-normalization
-- Update contact fields
-- Delete contacts
+**SQL for reads:** Fast, indexed queries. The AddressBook SQLite database is the source of truth.
+
+**AppleScript for writes:** The Contacts framework (CNContact) has known bugs with notes and social profiles. AppleScript is Apple's canonical interface - changes sync reliably with iCloud.
+
+## Contact Photo Operations
+
+### Check if contact has photo
+```
+contact = Contacts.get(id: "...")
+if contact.has_photo:
+    print("Has photo")
+```
+
+### Set photo from file
+```
+Contacts.set_photo(id: "...", path: "/path/to/photo.jpg")
+```
+
+### Clear photo
+```
+Contacts.clear_photo(id: "...")
+```
+
+## Notes
+
+- Contact IDs can change after iCloud sync - query by name after create
+- Phone numbers are auto-normalized: `5125551234` → `+15125551234`
+- URL labels are auto-detected: `github.com` → "GitHub"

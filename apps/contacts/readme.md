@@ -89,16 +89,37 @@ schema:
       type: datetime
 
 actions:
+  accounts:
+    description: List available contact accounts/containers (iCloud, local, work, etc.)
+    readonly: true
+    returns:
+      type: array
+      items:
+        type: object
+        properties:
+          id: { type: string }
+          name: { type: string }
+          count: { type: number }
+          is_default: { type: boolean }
+
   list:
-    description: List contacts with optional filters
+    description: List contacts from a specific account with optional filters
     readonly: true
     params:
+      account:
+        type: string
+        required: true
+        description: Account ID from accounts action
       query:
         type: string
         description: Search by name, email, phone, or organization
       organization:
         type: string
         description: Filter by organization/company
+      sort:
+        type: string
+        default: modified
+        description: "Sort by: modified (default), created, name"
       limit:
         type: number
         default: 50
@@ -115,9 +136,13 @@ actions:
     returns: contact
 
   search:
-    description: Search contacts by text
+    description: Search contacts by text within a specific account
     readonly: true
     params:
+      account:
+        type: string
+        required: true
+        description: Account ID from accounts action
       query:
         type: string
         required: true
@@ -128,8 +153,12 @@ actions:
     returns: contact[]
 
   create:
-    description: Create a new contact with any schema fields
+    description: Create a new contact in a specific account
     params:
+      account:
+        type: string
+        required: true
+        description: Account ID to create contact in
       # Scalar fields
       first_name:
         type: string
@@ -263,14 +292,45 @@ actions:
         description: Contact ID
     returns: void
 
+  set_photo:
+    description: Set a contact's photo from a local file path
+    params:
+      id:
+        type: string
+        required: true
+        description: Contact ID
+      path:
+        type: string
+        required: true
+        description: Local file path to image (JPEG, PNG)
+
+  clear_photo:
+    description: Remove a contact's photo
+    params:
+      id:
+        type: string
+        required: true
+        description: Contact ID
+
 instructions: |
-  When working with contacts:
+  **Multi-Account Support:**
+  macOS can have multiple contact accounts (iCloud, local, Exchange, etc.).
+  Always call `accounts` first to get available accounts and find the default.
+  
+  Example workflow:
+  1. `Contacts.accounts()` → Find account with `is_default: true`
+  2. `Contacts.list(account: "<id>", limit: 10)` → List contacts from that account
+  3. `Contacts.create(account: "<id>", first_name: "John", ...)` → Create in account
+  
+  **Other notes:**
   - Use connector: "apple-contacts" for macOS Contacts (iCloud synced)
   - Use `update` for scalar fields (name, organization, job_title, etc.)
   - Use `add` to append emails, phones, urls, or addresses
   - Use `remove` to delete emails, phones, urls, or addresses by value
   - Phone numbers are normalized to E.164 format (+1XXXXXXXXXX for US)
   - URL labels auto-detected: github.com → "GitHub", linkedin.com → "LinkedIn"
+  - Use `set_photo` to set contact photo from file, `clear_photo` to remove
+  - The `get` action returns `has_photo: boolean` field
 ---
 
 # Contacts

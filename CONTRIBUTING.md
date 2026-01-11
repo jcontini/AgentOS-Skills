@@ -212,7 +212,8 @@ database: "~/Library/Messages/chat.db"
 | `rest:` | REST APIs | `apps/finance/connectors/copilot/readme.md` |
 | `graphql:` | GraphQL APIs | `apps/tasks/connectors/linear/readme.md` |
 | `csv:` | CSV file parsing | `apps/books/connectors/goodreads/readme.md` |
-| `sql:` | Database queries | `apps/databases/connectors/postgres/readme.md` |
+| `sql:` | Database queries | `apps/contacts/connectors/apple-contacts/readme.md` |
+| `applescript:` | macOS Automation | `apps/contacts/connectors/apple-contacts/readme.md` |
 | `command:` | CLI tools | `apps/files/connectors/macos/readme.md` |
 | `swift:` | macOS Swift scripts | `apps/calendar/connectors/apple-calendar/readme.md` |
 | `playwright:` | Browser automation | `apps/messages/connectors/instagram/readme.md` |
@@ -467,5 +468,69 @@ const title = testContent('my task');  // → "[TEST] my task abc123"
 | Build a CSV connector | `apps/books/connectors/goodreads/readme.md` |
 | Build a GraphQL connector | `apps/tasks/connectors/linear/readme.md` |
 | Build a REST connector | `apps/finance/connectors/copilot/readme.md` |
+| Build a SQL + AppleScript connector | `apps/contacts/connectors/apple-contacts/readme.md` |
 | Build a Swift connector | `apps/calendar/connectors/apple-calendar/readme.md` |
 | Write tests | `apps/tasks/connectors/linear/tests/linear.test.ts` |
+
+---
+
+## Key Concepts & Gotchas
+
+### readonly is defined at App level, not Connector level
+
+Write protection comes from `readonly: true` in `apps/{app}/readme.md` actions, **not** the connector:
+
+```yaml
+# apps/contacts/readme.md
+actions:
+  list:
+    description: List contacts
+    readonly: true  # ← This controls write protection
+```
+
+If your new action errors with "'action' is a write action", add it to the **app's** readme.md with `readonly: true`.
+
+### Template defaults require `| default:` syntax
+
+The `default:` in YAML param definitions doesn't auto-apply to templates. Use pipe syntax:
+
+```yaml
+# ❌ Won't work - params.sort will be empty if not provided
+ORDER BY CASE '{{params.sort}}' WHEN 'modified' THEN ...
+
+# ✅ Works - defaults to 'modified' in template
+ORDER BY CASE '{{params.sort | default: modified}}' WHEN 'modified' THEN ...
+```
+
+### SQL database path supports templates
+
+The `sql.database` path can use `{{params.field}}`:
+
+```yaml
+sql:
+  database: "~/Library/AddressBook/Sources/{{params.account}}/AddressBook.db"
+  query: "SELECT * FROM contacts LIMIT {{params.limit | default: 50}}"
+```
+
+### macOS connector patterns
+
+For macOS native data (Contacts, Calendar), mix executors:
+
+| Task | Executor | Why |
+|------|----------|-----|
+| List accounts/containers | `swift:` | Only way to get CNContactStore metadata |
+| Fast reads | `sql:` | Direct SQLite is fastest |
+| Reliable writes | `applescript:` | Syncs properly with iCloud |
+
+See `apps/contacts/connectors/apple-contacts/readme.md` for full example.
+
+### Swift executor compiles and caches
+
+Inline Swift scripts are compiled once and cached in `~/.agentos/cache/swift/`. Clear this if your script changes aren't taking effect.
+
+### Apple container IDs need transformation
+
+`CNContactStore` returns IDs like `ABC-123:ABAccount` but filesystem uses just `ABC-123`. Strip the suffix in your Swift script:
+
+```swift
+let dirId = container.identifier.replacingOccurrences(of: ":ABAccount", with: "")
