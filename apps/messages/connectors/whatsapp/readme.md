@@ -50,6 +50,7 @@ actions:
           name: "[].name"
           unread_count: "[].unread_count"
           updated_at: "[].updated_at"
+          contact_jid: "[].contact_jid"
           platform: "'whatsapp'"
           connector: "'whatsapp'"
 
@@ -262,6 +263,57 @@ actions:
           is_read: "false"
           timestamp: "[].timestamp"
           connector: "'whatsapp'"
+
+  get_profile_photo:
+    # Chained executor: SQL lookup contact → ls for photo file → SQL to build response
+    - sql:
+        database: "~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ContactsV2.sqlite"
+        query: |
+          SELECT 
+            COALESCE(c.ZFULLNAME, '') as name, 
+            COALESCE(REPLACE(c.ZLID, '@lid', ''), '') as lid
+          FROM (SELECT 1) d
+          LEFT JOIN ZWAADDRESSBOOKCONTACT c 
+            ON c.ZPHONENUMBER LIKE '%' || substr('{{params.phone}}', -10) || '%'
+          LIMIT 1
+      as: contact
+    
+    - command:
+        binary: /bin/bash
+        args:
+          - "-c"
+          - "lid='{{contact[0].lid}}'; dir=\"$HOME/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/Media/Profile\"; ls \"$dir/$lid-\"*.jpg 2>/dev/null | head -1 || ls \"$dir/$lid-\"*.thumb 2>/dev/null | head -1"
+      as: photo
+    
+    - sql:
+        database: ":memory:"
+        query: |
+          SELECT 
+            CASE WHEN '{{contact[0].lid}}' NOT IN ('', 'null', 'undefined') THEN '{{contact[0].name}}' ELSE NULL END as name,
+            CASE WHEN '{{contact[0].lid}}' NOT IN ('', 'null', 'undefined') THEN '{{contact[0].lid}}' ELSE NULL END as lid,
+            CASE 
+              WHEN '{{contact[0].lid}}' IN ('', 'null', 'undefined') THEN NULL
+              WHEN trim('{{photo}}') != '' THEN trim('{{photo}}')
+              ELSE NULL
+            END as path,
+            CASE 
+              WHEN '{{contact[0].lid}}' IN ('', 'null', 'undefined') THEN NULL
+              WHEN trim('{{photo}}') LIKE '%.jpg' THEN 'hires'
+              WHEN trim('{{photo}}') LIKE '%.thumb' THEN 'thumb'
+              ELSE NULL
+            END as size,
+            CASE 
+              WHEN '{{contact[0].lid}}' IN ('', 'null', 'undefined') THEN 'contact_not_on_whatsapp'
+              WHEN trim('{{photo}}') = '' THEN 'no_photo_set'
+              ELSE NULL
+            END as reason
+      response:
+        mapping:
+          name: ".name"
+          lid: ".lid"
+          path: ".path"
+          size: ".size"
+          reason: ".reason"
 ---
 
 # WhatsApp

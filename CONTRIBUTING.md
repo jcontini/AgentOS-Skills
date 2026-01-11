@@ -282,6 +282,36 @@ actions:
             stateId: "{{lookup.data.issue.team.states.nodes[0].id}}"
 ```
 
+**Accessing chained results by executor type:**
+
+| Executor | Result structure | Access pattern |
+|----------|------------------|----------------|
+| `graphql:` | Object with `data` | `{{step.data.field}}` |
+| `sql:` | Array of rows | `{{step[0].column}}` (first row) |
+| `command:` | stdout string directly | `{{step}}` (NOT `{{step.stdout}}`) |
+
+**Common gotchas:**
+
+1. **SQL returns an array** — use bracket notation `{{contact[0].name}}`:
+```yaml
+# ❌ WRONG - contact is an array
+'{{contact.name}}'
+
+# ✅ CORRECT - bracket notation for array index
+'{{contact[0].name}}'
+```
+
+2. **Command returns stdout directly** — NOT wrapped in an object:
+```yaml
+# ❌ WRONG - command result is just the stdout string
+'{{photo.stdout}}'
+
+# ✅ CORRECT - access directly
+'{{photo}}'
+```
+
+**Testing chained executors:** Always test with real data that returns results. Template variables like `{{step}}` will appear literally in output if the step returned empty/null — tests with empty results won't catch this!
+
 ---
 
 ## macOS Integration Pattern

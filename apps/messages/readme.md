@@ -232,6 +232,32 @@ actions:
         default: 50
     returns: message[]
 
+  get_profile_photo:
+    description: Get local file path to a contact's profile photo by phone number
+    readonly: true
+    params:
+      phone:
+        type: string
+        required: true
+        description: Phone number (any format, e.g. +1234567890 or 1234567890)
+    returns:
+      path:
+        type: string
+        nullable: true
+        description: Full path to photo file, null if not found
+      size:
+        type: string
+        nullable: true
+        description: "Photo size: 'hires' or 'thumb'"
+      name:
+        type: string
+        nullable: true
+        description: Contact's display name from the messaging platform
+      reason:
+        type: string
+        nullable: true
+        description: "Why photo wasn't found: 'contact_not_on_whatsapp' or 'no_photo_set'"
+
   # ============================================================================
   # WRITE ACTIONS
   # ============================================================================
