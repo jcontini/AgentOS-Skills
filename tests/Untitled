@@ -1,1 +1,0 @@
-And remember, I see you writing tests like the Todoist tests in apps, but people that have access to the integrations folder, they won't have access to any of our Rust code. They won't have access to our core. So when we say like this tests, utils, fixtures, what is that? Is that in the integrations repo? Or something else? I guess it is. Okay.
