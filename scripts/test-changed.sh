@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run tests only for changed apps/connectors
 # 
-# If you edit an app/connector, it MUST have tests or the commit fails.
+# If you edit an app/connector, it MUST have valid YAML and tests.
 # This progressively enforces test coverage as code is touched.
 #
 # Usage: ./scripts/test-changed.sh [--all] [--staged]
@@ -40,28 +40,37 @@ if [ -z "$CHANGED_FILES" ]; then
   exit 0
 fi
 
+# Check if any readme.md files were changed in apps/
+CHANGED_READMES=$(echo "$CHANGED_FILES" | grep -E '^apps/[^/]+/readme\.md$' || true)
+
+if [ -n "$CHANGED_READMES" ]; then
+  echo "📋 Validating YAML schema for changed connectors..."
+  
+  # Extract app names from changed readme paths
+  CHANGED_APPS=$(echo "$CHANGED_READMES" | sed 's|apps/||' | sed 's|/readme.md||' | tr '\n' ' ')
+  
+  # Run fast schema validation (no AgentOS connection needed)
+  node scripts/validate-schema.mjs $CHANGED_APPS
+  if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ COMMIT BLOCKED: Schema validation failed"
+    echo ""
+    echo "Fix the YAML errors above, then try again."
+    exit 1
+  fi
+  echo ""
+fi
+
 # Extract unique apps from changed files (apps/{app}/...)
+# New flat structure: apps/linear/, apps/todoist/, etc.
 AFFECTED_APPS=$(echo "$CHANGED_FILES" | grep -oE '^apps/[^/]+' | sort -u | cut -d/ -f2 || true)
 
-# Extract unique connectors from changed files (apps/{app}/connectors/{connector}/...)
-AFFECTED_CONNECTORS=$(echo "$CHANGED_FILES" | grep -oE '^apps/[^/]+/connectors/[^/]+' | sort -u || true)
-
-if [ -z "$AFFECTED_APPS" ] && [ -z "$AFFECTED_CONNECTORS" ]; then
+if [ -z "$AFFECTED_APPS" ]; then
   echo "✅ No app/connector files changed"
   exit 0
 fi
 
-echo ""
 echo "📦 Changed apps: ${AFFECTED_APPS:-none}"
-echo "🔌 Changed connectors: ${AFFECTED_CONNECTORS:-none}"
-echo ""
-
-# Run structure tests only for changed apps/connectors
-echo "📋 Running structure tests for changed files..."
-STRUCTURE_FILTER=$(echo "$AFFECTED_APPS $AFFECTED_CONNECTORS" | tr ' ' '\n' | sed 's|apps/||' | sed "s|/connectors/|.*|" | paste -sd'|' -)
-if [ -n "$STRUCTURE_FILTER" ]; then
-  npm test -- tests/structure.test.ts --run -t "$STRUCTURE_FILTER" 2>/dev/null || npm test -- tests/structure.test.ts --run
-fi
 echo ""
 
 MISSING_TESTS=()
@@ -84,25 +93,7 @@ for app in $AFFECTED_APPS; do
   fi
 done
 
-# Check and run tests for each affected connector
-for connector_path in $AFFECTED_CONNECTORS; do
-  CONNECTOR_TEST_DIR="$connector_path/tests"
-  
-  if [ ! -d "$CONNECTOR_TEST_DIR" ]; then
-    MISSING_TESTS+=("$connector_path")
-  else
-    # Check there's at least one test file
-    TEST_COUNT=$(find "$CONNECTOR_TEST_DIR" -name "*.test.ts" 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$TEST_COUNT" -eq 0 ]; then
-      MISSING_TESTS+=("$connector_path")
-    else
-      echo "🧪 Testing $connector_path..."
-      npm test -- "$CONNECTOR_TEST_DIR" --run || exit 1
-    fi
-  fi
-done
-
-# If any changed apps/connectors are missing tests, fail
+# If any changed apps are missing tests, fail
 if [ ${#MISSING_TESTS[@]} -gt 0 ]; then
   echo ""
   echo "❌ COMMIT BLOCKED: Missing tests for changed code"
