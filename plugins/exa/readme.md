@@ -23,47 +23,42 @@ instructions: |
   - Fast: typically under 1 second per request
   - Use for research, concepts, "how to" queries
 
-# Action implementations
-# Each action declares which capability it provides and maps to the unified schema
-actions:
-  search:
-    operation: read
-    provides: web_search
-    label: "Search web"
-    rest:
-      method: POST
-      url: https://api.exa.ai/search
-      body:
-        query: "{{params.query}}"
-        numResults: "{{params.limit | default:5}}"
-        type: "auto"
-      response:
-        root: "results"
-        mapping:
-          # Map each result item to web_search schema fields
-          url: ".url"
-          title: ".title"
-          snippet: ".text"
-          published_at: ".publishedDate"
+# Entity implementations
+# Structure: entities.{entity}.{operation} = executor
+entities:
+  web:
+    search:
+      label: "Search web"
+      rest:
+        method: POST
+        url: https://api.exa.ai/search
+        body:
+          query: "{{params.query}}"
+          numResults: "{{params.limit | default:5}}"
+          type: "auto"
+        response:
+          root: "results"
+          mapping:
+            url: ".url"
+            title: ".title"
+            snippet: ".text"
+            published_at: ".publishedDate"
 
-  read:
-    operation: read
-    provides: web_read
-    label: "Read URL"
-    rest:
-      method: POST
-      url: https://api.exa.ai/contents
-      body:
-        urls:
-          - "{{params.url}}"
-        text: true
-      response:
-        root: "results[0]"
-        mapping:
-          # web_read schema: { url, title?, content }
-          url: ".url"
-          title: ".title"
-          content: ".text"
+    read:
+      label: "Read URL"
+      rest:
+        method: POST
+        url: https://api.exa.ai/contents
+        body:
+          urls:
+            - "{{params.url}}"
+          text: true
+        response:
+          root: "results[0]"
+          mapping:
+            url: ".url"
+            title: ".title"
+            content: ".text"
 ---
 
 # Exa

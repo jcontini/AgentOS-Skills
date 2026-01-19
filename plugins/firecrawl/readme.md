@@ -25,46 +25,41 @@ instructions: |
   - Slower than Exa but handles modern web apps
   - Cost: ~$0.009/page for scrape, ~$0.01/search
 
-# Action implementations
-# Each action declares which capability it provides and maps to the unified schema
-actions:
-  search:
-    operation: read
-    provides: web_search
-    label: "Search web"
-    rest:
-      method: POST
-      url: https://api.firecrawl.dev/v1/search
-      body:
-        query: "{{params.query}}"
-        limit: "{{params.limit | default:5}}"
-      response:
-        root: "data"
-        mapping:
-          # Map each result item to web_search schema fields
-          url: ".url"
-          title: ".title"
-          snippet: ".description"
+# Entity implementations
+# Structure: entities.{entity}.{operation} = executor
+entities:
+  web:
+    search:
+      label: "Search web"
+      rest:
+        method: POST
+        url: https://api.firecrawl.dev/v1/search
+        body:
+          query: "{{params.query}}"
+          limit: "{{params.limit | default:5}}"
+        response:
+          root: "data"
+          mapping:
+            url: ".url"
+            title: ".title"
+            snippet: ".description"
 
-  read:
-    operation: read
-    provides: web_read
-    label: "Read URL"
-    rest:
-      method: POST
-      url: https://api.firecrawl.dev/v1/scrape
-      body:
-        url: "{{params.url}}"
-        formats:
-          - markdown
-        onlyMainContent: true
-      response:
-        root: "data"
-        mapping:
-          # web_read schema: { url, title?, content }
-          url: ".metadata.sourceURL"
-          title: ".metadata.title"
-          content: ".markdown"
+    read:
+      label: "Read URL"
+      rest:
+        method: POST
+        url: https://api.firecrawl.dev/v1/scrape
+        body:
+          url: "{{params.url}}"
+          formats:
+            - markdown
+          onlyMainContent: true
+        response:
+          root: "data"
+          mapping:
+            url: ".metadata.sourceURL"
+            title: ".metadata.title"
+            content: ".markdown"
 ---
 
 # Firecrawl
