@@ -28,15 +28,15 @@ describe('Linear Plugin', () => {
   beforeAll(async () => {
     try {
       // Get the first available team for creating issues
-      const tasks = await aos().call('UsePlugin', {
+      const teams = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'list',
-        params: { limit: 1 },
+        tool: 'get_teams',
+        params: {},
       });
       
-      if (tasks.length > 0 && tasks[0].team?.id) {
-        teamId = tasks[0].team.id;
-        console.log(`  Using team: ${tasks[0].team.name || teamId}`);
+      if (teams.length > 0) {
+        teamId = teams[0].id;
+        console.log(`  Using team: ${teams[0].name || teamId}`);
       }
     } catch (e: any) {
       if (e.message?.includes('Credential not found')) {
@@ -54,7 +54,7 @@ describe('Linear Plugin', () => {
       try {
         await aos().call('UsePlugin', {
           ...baseParams,
-          tool: 'delete',
+          tool: 'task.delete',
           params: { id: item.id },
           execute: true,
         });
@@ -64,13 +64,13 @@ describe('Linear Plugin', () => {
     }
   });
 
-  describe('list', () => {
+  describe('task.list', () => {
     it('returns an array of tasks', async () => {
       if (skipTests) return;
       
       const tasks = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'list',
+        tool: 'task.list',
         params: { limit: 5 },
       });
 
@@ -82,7 +82,7 @@ describe('Linear Plugin', () => {
       
       const tasks = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'list',
+        tool: 'task.list',
         params: { limit: 5 },
       });
 
@@ -96,12 +96,29 @@ describe('Linear Plugin', () => {
       }
     });
 
+    it('tasks have completed boolean field (entity schema compliance)', async () => {
+      if (skipTests) return;
+      
+      const tasks = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'task.list',
+        params: { limit: 5 },
+      });
+
+      // TODO: Fix transform layer to support ternary/comparison expressions
+      // The adapter mapping has: completed: ".state.type == 'completed'"
+      // but the server's evaluate_mapping_expression doesn't support this yet
+      for (const task of tasks) {
+        expect(typeof task.completed).toBe('boolean');
+      }
+    });
+
     it('respects limit parameter', async () => {
       if (skipTests) return;
       
       const tasks = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'list',
+        tool: 'task.list',
         params: { limit: 3 },
       });
 
@@ -109,7 +126,7 @@ describe('Linear Plugin', () => {
     });
   });
 
-  describe('create → get → update → delete', () => {
+  describe('task.create → task.get → task.update → task.delete', () => {
     let createdTask: any;
 
     it('can create a task', async () => {
@@ -123,7 +140,7 @@ describe('Linear Plugin', () => {
       
       createdTask = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'create',
+        tool: 'task.create',
         params: {
           title,
           description: 'Created by AgentOS integration test',
@@ -148,7 +165,7 @@ describe('Linear Plugin', () => {
 
       const task = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'get',
+        tool: 'task.get',
         params: { id: createdTask.id },
       });
 
@@ -168,7 +185,7 @@ describe('Linear Plugin', () => {
       
       const updated = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'update',
+        tool: 'task.update',
         params: {
           id: createdTask.id,
           title: newTitle,
@@ -177,23 +194,6 @@ describe('Linear Plugin', () => {
       });
 
       expect(updated).toBeDefined();
-    });
-
-    it('can complete the task', async () => {
-      if (skipTests) return;
-      if (!createdTask?.id) {
-        console.log('  Skipping: no task was created');
-        return;
-      }
-
-      const result = await aos().call('UsePlugin', {
-        ...baseParams,
-        tool: 'complete',
-        params: { id: createdTask.id },
-        execute: true,
-      });
-
-      expect(result).toBeDefined();
     });
 
     it('can delete the task', async () => {
@@ -205,7 +205,7 @@ describe('Linear Plugin', () => {
 
       const result = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'delete',
+        tool: 'task.delete',
         params: { id: createdTask.id },
         execute: true,
       });
@@ -218,13 +218,14 @@ describe('Linear Plugin', () => {
     });
   });
 
-  describe('projects', () => {
+  describe('project.list', () => {
     it('can list projects', async () => {
       if (skipTests) return;
       
       const projects = await aos().call('UsePlugin', {
         ...baseParams,
-        tool: 'projects',
+        tool: 'project.list',
+        params: {},
       });
 
       expect(Array.isArray(projects)).toBe(true);
@@ -236,10 +237,233 @@ describe('Linear Plugin', () => {
     });
   });
 
-  describe('Linear-specific: relationship actions', () => {
-    // Note: add_blocker, remove_blocker, add_related, remove_related
-    // These are complex to test (need 2 tasks) - skip for now
-    it.todo('can add and remove blockers');
-    it.todo('can add and remove related issues');
+  describe('utilities', () => {
+    it('whoami returns current user', async () => {
+      if (skipTests) return;
+      
+      const user = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'whoami',
+        params: {},
+      });
+
+      expect(user).toBeDefined();
+      expect(user.id).toBeDefined();
+      expect(user.email).toBeDefined();
+    });
+
+    it('get_teams returns teams', async () => {
+      if (skipTests) return;
+      
+      const teams = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'get_teams',
+        params: {},
+      });
+
+      expect(Array.isArray(teams)).toBe(true);
+      if (teams.length > 0) {
+        expect(teams[0].id).toBeDefined();
+        expect(teams[0].name).toBeDefined();
+      }
+    });
+
+    it('get_workflow_states returns states for a team', async () => {
+      if (skipTests) return;
+      if (!teamId) {
+        console.log('  Skipping: no team_id discovered');
+        return;
+      }
+      
+      const states = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'get_workflow_states',
+        params: { team_id: teamId },
+      });
+
+      expect(Array.isArray(states)).toBe(true);
+      if (states.length > 0) {
+        expect(states[0].id).toBeDefined();
+        expect(states[0].name).toBeDefined();
+        expect(states[0].type).toBeDefined();
+      }
+    });
+
+    it('get_cycles returns cycles for a team', async () => {
+      if (skipTests) return;
+      if (!teamId) {
+        console.log('  Skipping: no team_id discovered');
+        return;
+      }
+      
+      const cycles = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'get_cycles',
+        params: { team_id: teamId },
+      });
+
+      expect(Array.isArray(cycles)).toBe(true);
+      // Cycles may be empty if team doesn't use them
+    });
   });
+
+  describe('relationship utilities', () => {
+    let task1: any;
+    let task2: any;
+    let blockerRelationId: string | undefined;
+    let relatedRelationId: string | undefined;
+
+    it('get_relations returns relationship data', async () => {
+      if (skipTests) return;
+      
+      // Get relations for any existing task
+      const tasks = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'task.list',
+        params: { limit: 1 },
+      });
+
+      if (tasks.length === 0) {
+        console.log('  Skipping: no tasks available');
+        return;
+      }
+
+      const relations = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'get_relations',
+        params: { id: tasks[0].id },
+      });
+
+      expect(relations).toBeDefined();
+      // Relations may be empty arrays, but should be defined
+      expect(Array.isArray(relations.blocks) || relations.blocks === undefined).toBe(true);
+    });
+
+    it('can create two tasks for relationship testing', async () => {
+      if (skipTests) return;
+      if (!teamId) {
+        console.log('  Skipping: no team_id discovered');
+        return;
+      }
+
+      task1 = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'task.create',
+        params: {
+          title: testContent('task1 for relations'),
+          team_id: teamId,
+        },
+        execute: true,
+      });
+      createdItems.push({ id: task1.id });
+
+      task2 = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'task.create',
+        params: {
+          title: testContent('task2 for relations'),
+          team_id: teamId,
+        },
+        execute: true,
+      });
+      createdItems.push({ id: task2.id });
+
+      expect(task1.id).toBeDefined();
+      expect(task2.id).toBeDefined();
+    });
+
+    it('add_blocker creates blocking relationship and returns relation_id', async () => {
+      if (skipTests) return;
+      if (!task1?.id || !task2?.id) {
+        console.log('  Skipping: tasks not created');
+        return;
+      }
+
+      const result = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'add_blocker',
+        params: { id: task1.id, blocker_id: task2.id },
+        execute: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.relation_id).toBeDefined();
+      blockerRelationId = result.relation_id;
+    });
+
+    it('remove_relation removes blocking relationship', async () => {
+      if (skipTests) return;
+      if (!blockerRelationId) {
+        console.log('  Skipping: no blocker relation created');
+        return;
+      }
+
+      const result = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'remove_relation',
+        params: { relation_id: blockerRelationId },
+        execute: true,
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('add_related links two issues and returns relation_id', async () => {
+      if (skipTests) return;
+      if (!task1?.id || !task2?.id) {
+        console.log('  Skipping: tasks not created');
+        return;
+      }
+
+      const result = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'add_related',
+        params: { id: task1.id, related_id: task2.id },
+        execute: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.relation_id).toBeDefined();
+      relatedRelationId = result.relation_id;
+    });
+
+    it('remove_relation removes related relationship', async () => {
+      if (skipTests) return;
+      if (!relatedRelationId) {
+        console.log('  Skipping: no related relation created');
+        return;
+      }
+
+      const result = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'remove_relation',
+        params: { relation_id: relatedRelationId },
+        execute: true,
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('cleanup: delete relationship test tasks', async () => {
+      if (skipTests) return;
+      
+      for (const task of [task1, task2]) {
+        if (task?.id) {
+          try {
+            await aos().call('UsePlugin', {
+              ...baseParams,
+              tool: 'task.delete',
+              params: { id: task.id },
+              execute: true,
+            });
+            const idx = createdItems.findIndex(i => i.id === task.id);
+            if (idx >= 0) createdItems.splice(idx, 1);
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      }
+    });
+  });
+
 });
