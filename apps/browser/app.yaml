@@ -1,8 +1,8 @@
-# Internet App
+# Browser App
 # Displays web search and reading activity from AI agents
 
-id: internet
-name: Internet
+id: browser
+name: Browser
 icon: icon.svg
 description: Watch AI search the web and read pages
 
@@ -13,9 +13,9 @@ entities:
 
 # Menu bar configuration
 menus:
-  - name: Internet
+  - name: Browser
     items:
-      - label: About Internet
+      - label: About Browser
         action: open_view
         view: about
   - name: History
@@ -27,7 +27,7 @@ views:
   search:
     entity: webpage
     operation: search
-    title: Internet
+    title: Browser
     toolbar:
       - component: url-bar
         props:
@@ -152,7 +152,7 @@ views:
 
   # About view - shows app info
   about:
-    title: About Internet
+    title: About Browser
     layout:
       - component: layout/stack
         props:
@@ -167,7 +167,7 @@ views:
               align: center
           - component: text
             props:
-              content: Internet
+              content: Browser
               variant: title
               align: center
           - component: text
@@ -177,11 +177,11 @@ views:
               align: center
           - component: text
             props:
-              content: "Source: apps/internet/app.yaml"
+              content: "Source: apps/browser/app.yaml"
               variant: caption
               align: center
 
-  # History view - shows all internet activities (webpage + video)
+  # History view - shows all browser activities (webpage + video)
   history:
     title: History
     layout:
