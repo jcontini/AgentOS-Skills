@@ -29,6 +29,7 @@ instructions: |
 # Action implementations (merged from mapping.yaml)
 actions:
   query:
+    operation: read
     label: "Execute SQL query"
     sql:
       # Use |raw modifier to skip SQL escaping - the AI provides complete SQL queries
@@ -40,8 +41,8 @@ actions:
         row_count: "length(.)"
 
   tables:
+    operation: read
     label: "List tables"
-    readonly: true
     sql:
       query: |
         SELECT name
@@ -54,8 +55,8 @@ actions:
       mapping: "[].name"
 
   describe:
+    operation: read
     label: "Describe table"
-    readonly: true
     sql:
       # SQLite uses PRAGMA instead of information_schema
       query: "PRAGMA table_info('{{params.table}}')"

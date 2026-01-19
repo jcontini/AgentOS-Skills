@@ -18,7 +18,8 @@ actions:
   search:
     # Search for books on Hardcover, returns top matches sorted by popularity
     # Step 1: Search for books by query
-    - graphql:
+    - operation: read
+      graphql:
         endpoint: "https://api.hardcover.app/v1/graphql"
         query: |
           query SearchBooks($query: String!) {
@@ -30,7 +31,8 @@ actions:
           query: "{{params.query}}"
       as: search
     # Step 2: Get book details for search results
-    - graphql:
+    - operation: read
+      graphql:
         endpoint: "https://api.hardcover.app/v1/graphql"
         query: |
           query GetBooks($ids: [Int!]!) {
@@ -70,7 +72,8 @@ actions:
 
   pull:
     # Step 1: Get the authenticated user's ID
-    - graphql:
+    - operation: read
+      graphql:
         endpoint: "https://api.hardcover.app/v1/graphql"
         query: |
           {
@@ -80,7 +83,8 @@ actions:
           }
       as: user
     # Step 2: Get the user's books using their ID
-    - graphql:
+    - operation: read
+      graphql:
         endpoint: "https://api.hardcover.app/v1/graphql"
         query: |
           query GetUserBooks($user_id: Int!) {
@@ -130,6 +134,7 @@ actions:
   create:
     # Add a book by hardcover_id (from search results)
     # IMPORTANT: Always search first, verify with user, then create with the ID
+    operation: create
     graphql:
       endpoint: "https://api.hardcover.app/v1/graphql"
       query: |
@@ -155,6 +160,7 @@ actions:
   update:
     # Update a book's status in Hardcover
     # Note: status_id mapping: 1=want_to_read, 2=reading, 3=read, 5=dnf
+    operation: update
     graphql:
       endpoint: "https://api.hardcover.app/v1/graphql"
       query: |
@@ -182,6 +188,7 @@ actions:
 
   delete:
     # Remove a book from user's library
+    operation: delete
     graphql:
       endpoint: "https://api.hardcover.app/v1/graphql"
       query: |
@@ -201,7 +208,8 @@ actions:
   push:
     # Push is for bulk operations - uses same logic as create
     # Step 1: Search for the book by title or ISBN, sorted by popularity
-    - graphql:
+    - operation: read
+      graphql:
         endpoint: "https://api.hardcover.app/v1/graphql"
         query: |
           query SearchBook($query: String!) {
@@ -213,7 +221,8 @@ actions:
           query: "{{params.title | default: params.isbn}}"
       as: search
     # Step 2: Add the book to user's library
-    - graphql:
+    - operation: create
+      graphql:
         endpoint: "https://api.hardcover.app/v1/graphql"
         query: |
           mutation AddBook($book_id: Int!, $status_id: Int!) {

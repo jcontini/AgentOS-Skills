@@ -7,8 +7,8 @@ tags: [demo, fun, examples]
 
 actions:
   weather:
+    operation: read
     description: Get current weather for a city
-    readonly: true
     params:
       city: { type: string, description: "City name", example: "Austin" }
     rest:
@@ -25,8 +25,8 @@ actions:
           wind_mph: ".windspeedMiles"
 
   ip:
+    operation: read
     description: Get your public IP and location info
-    readonly: true
     rest:
       method: GET
       url: "http://ip-api.com/json/"
@@ -41,8 +41,8 @@ actions:
           lon: ".lon"
 
   iss:
+    operation: read
     description: Get current position of the International Space Station
-    readonly: true
     rest:
       method: GET
       url: "http://api.open-notify.org/iss-now.json"
@@ -53,8 +53,8 @@ actions:
           timestamp: ".timestamp"
 
   space:
+    operation: read
     description: Get info about the next SpaceX launch
-    readonly: true
     rest:
       method: GET
       url: "https://api.spacexdata.com/v5/launches/next"
@@ -67,8 +67,8 @@ actions:
           webcast: ".links.webcast"
 
   joke:
+    operation: read
     description: Get a random programming joke
-    readonly: true
     rest:
       method: GET
       url: "https://official-joke-api.appspot.com/jokes/programming/random"
@@ -79,8 +79,8 @@ actions:
           punchline: ".punchline"
 
   fact:
+    operation: read
     description: Get a random useless fact
-    readonly: true
     rest:
       method: GET
       url: "https://uselessfacts.jsph.pl/api/v2/facts/random"
@@ -90,8 +90,8 @@ actions:
           source: ".source"
 
   echo:
+    operation: read
     description: Echo back a message (for testing)
-    readonly: true
     params:
       message: { type: string, description: "Message to echo" }
     command:
@@ -99,8 +99,8 @@ actions:
       args: ["{{params.message}}"]
 
   http_get:
+    operation: read
     description: Test HTTP GET request via httpbin
-    readonly: true
     rest:
       method: GET
       url: "https://httpbin.org/get"

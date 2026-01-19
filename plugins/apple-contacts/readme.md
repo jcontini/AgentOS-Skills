@@ -44,9 +44,9 @@ instructions: |
 # Action implementations
 actions:
   accounts:
+    operation: read
     label: "List accounts"
     description: List available contact accounts/containers (iCloud, local, work, etc.)
-    readonly: true
     swift:
       script: |
         import Contacts
@@ -100,6 +100,7 @@ actions:
           connector: "'apple-contacts'"
 
   list:
+    operation: read
     label: "List contacts"
     description: List contacts from a specific account with optional filtering and sorting
     params:
@@ -171,6 +172,7 @@ actions:
           connector: "'apple-contacts'"
 
   search:
+    operation: read
     label: "Search contacts"
     description: Search contacts by any text within a specific account
     params:
@@ -213,6 +215,7 @@ actions:
           connector: "'apple-contacts'"
 
   get:
+    operation: read
     label: "Get contact"
     description: Get full contact details by ID including has_photo field
     params:
@@ -340,6 +343,7 @@ actions:
           connector: ".connector"
 
   create:
+    operation: create
     label: "Create contact"
     description: Create a new contact in a specific account
     params:
@@ -411,6 +415,7 @@ actions:
           connector: ".connector"
 
   update:
+    operation: update
     label: "Update contact"
     description: Update scalar fields on a contact
     params:
@@ -457,6 +462,7 @@ actions:
           connector: ".connector"
 
   add:
+    operation: update
     label: "Add to contact"
     description: Add items to array fields (emails, phones, urls, addresses)
     params:
@@ -515,6 +521,7 @@ actions:
           connector: ".connector"
 
   remove:
+    operation: update
     label: "Remove from contact"
     description: Remove items from array fields by matching value
     params:
@@ -607,6 +614,7 @@ actions:
           connector: ".connector"
 
   delete:
+    operation: delete
     label: "Delete contact"
     description: Delete a contact
     params:
@@ -638,6 +646,7 @@ actions:
           connector: ".connector"
 
   set_photo:
+    operation: update
     label: "Set contact photo"
     description: Set a contact's photo from a local file path
     params:
@@ -667,6 +676,7 @@ actions:
           connector: ".connector"
 
   clear_photo:
+    operation: update
     label: "Clear contact photo"
     description: Remove a contact's photo
     params:

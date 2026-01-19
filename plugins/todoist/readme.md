@@ -20,6 +20,7 @@ auth:
 # Action implementations (merged from mapping.yaml - AGE-267)
 actions:
   list:
+    operation: read
     label: "List tasks"
     rest:
       method: GET
@@ -43,6 +44,7 @@ actions:
           connector: "'todoist'"
 
   get:
+    operation: read
     label: "Get task"
     rest:
       method: GET
@@ -63,6 +65,7 @@ actions:
           connector: "'todoist'"
 
   create:
+    operation: create
     label: "Create task"
     rest:
       method: POST
@@ -90,6 +93,7 @@ actions:
           connector: "'todoist'"
 
   update:
+    operation: update
     label: "Update task"
     rest:
       method: POST
@@ -113,6 +117,7 @@ actions:
           connector: "'todoist'"
 
   complete:
+    operation: update
     label: "Complete task"
     rest:
       method: POST
@@ -124,6 +129,7 @@ actions:
           connector: "todoist"
 
   reopen:
+    operation: update
     label: "Reopen task"
     rest:
       method: POST
@@ -135,6 +141,7 @@ actions:
           connector: "todoist"
 
   delete:
+    operation: delete
     label: "Delete task"
     rest:
       method: DELETE
@@ -144,6 +151,7 @@ actions:
           success: true
 
   move:
+    operation: update
     label: "Move task"
     rest:
       method: POST
@@ -157,6 +165,7 @@ actions:
           connector: "todoist"
 
   projects:
+    operation: read
     label: "List projects"
     rest:
       method: GET
@@ -168,6 +177,7 @@ actions:
           connector: "'todoist'"
 
   labels:
+    operation: read
     label: "List labels"
     rest:
       method: GET

@@ -13,7 +13,8 @@ auth: null
 actions:
   pull:
     # Chained executor: csv reads file, app upserts to database
-    - csv:
+    - operation: read
+      csv:
         path: "{{params.path}}"
         response:
           mapping:

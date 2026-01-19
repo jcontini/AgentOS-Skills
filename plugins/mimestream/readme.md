@@ -16,7 +16,7 @@ database: "~/Library/Containers/com.mimestream.Mimestream/Data/Library/Applicati
 # Action implementations (merged from mapping.yaml)
 actions:
   accounts:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -27,7 +27,7 @@ actions:
         ORDER BY ZDISPLAYORDER
 
   mailboxes:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -57,7 +57,7 @@ actions:
           END
 
   list:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -106,7 +106,7 @@ actions:
         LIMIT {{params.limit | default: 50}}
 
   get:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -147,7 +147,7 @@ actions:
         WHERE m.Z_PK = {{params.id}}
 
   search:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -187,7 +187,7 @@ actions:
         LIMIT {{params.limit | default: 50}}
 
   unread:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -219,7 +219,7 @@ actions:
         LIMIT {{params.limit | default: 50}}
 
   list_threads:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -238,7 +238,7 @@ actions:
         LIMIT {{params.limit | default: 50}}
 
   get_thread:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 

@@ -28,6 +28,7 @@ instructions: |
 # Action implementations (merged from mapping.yaml)
 actions:
   query:
+    operation: read
     label: "Execute SQL query"
     sql:
       # Use |raw modifier to skip SQL escaping - the AI provides complete SQL queries
@@ -39,8 +40,8 @@ actions:
         row_count: "length(.)"
 
   tables:
+    operation: read
     label: "List tables"
-    readonly: true
     sql:
       query: |
         SELECT table_name as name
@@ -53,8 +54,8 @@ actions:
       mapping: "[].name"
 
   describe:
+    operation: read
     label: "Describe table"
-    readonly: true
     sql:
       query: |
         SELECT 

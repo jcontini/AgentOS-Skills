@@ -24,6 +24,7 @@ instructions: |
 # Action implementations (merged from mapping.yaml)
 actions:
   list_conversations:
+    operation: read
     label: "List conversations"
     description: List all AI chat conversations
     params:
@@ -53,6 +54,7 @@ actions:
           connector: "'cursor'"
 
   get_conversation:
+    operation: read
     label: "Get conversation"
     description: Get a specific conversation with metadata
     params:
@@ -79,6 +81,7 @@ actions:
           connector: "'cursor'"
 
   list:
+    operation: read
     label: "List messages"
     description: List messages in a conversation
     params:
@@ -134,6 +137,7 @@ actions:
           connector: "'cursor'"
 
   get:
+    operation: read
     label: "Get message"
     description: Get a specific message by ID
     params:
@@ -175,6 +179,7 @@ actions:
           connector: "'cursor'"
 
   search:
+    operation: read
     label: "Search messages"
     description: Search messages across all conversations
     params:

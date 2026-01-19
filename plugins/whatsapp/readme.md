@@ -23,6 +23,7 @@ instructions: |
 # Action implementations (merged from mapping.yaml)
 actions:
   list_conversations:
+    operation: read
     label: "List conversations"
     description: List all WhatsApp conversations
     params:
@@ -56,6 +57,7 @@ actions:
           connector: "'whatsapp'"
 
   get_conversation:
+    operation: read
     label: "Get conversation"
     description: Get a specific conversation with metadata
     params:
@@ -88,6 +90,7 @@ actions:
           connector: "'whatsapp'"
 
   get_participants:
+    operation: read
     label: "Get participants"
     description: Get participants in a group conversation
     params:
@@ -110,6 +113,7 @@ actions:
           name: "[].name"
 
   list:
+    operation: read
     label: "List messages"
     description: List messages in a conversation
     params:
@@ -153,6 +157,7 @@ actions:
           connector: "'whatsapp'"
 
   get:
+    operation: read
     label: "Get message"
     description: Get a specific message by ID
     params:
@@ -192,6 +197,7 @@ actions:
           connector: "'whatsapp'"
 
   search:
+    operation: read
     label: "Search messages"
     description: Search messages by text content
     params:
@@ -230,6 +236,7 @@ actions:
           connector: "'whatsapp'"
 
   get_unread:
+    operation: read
     label: "Get unread messages"
     description: Get all unread messages
     params:
@@ -267,7 +274,8 @@ actions:
 
   get_profile_photo:
     # Chained executor: SQL lookup contact → ls for photo file → SQL to build response
-    - sql:
+    - operation: read
+      sql:
         database: "~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ContactsV2.sqlite"
         query: |
           SELECT 
@@ -279,14 +287,16 @@ actions:
           LIMIT 1
       as: contact
     
-    - command:
+    - operation: read
+      command:
         binary: /bin/bash
         args:
           - "-c"
           - "lid='{{contact[0].lid}}'; dir=\"$HOME/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/Media/Profile\"; ls \"$dir/$lid-\"*.jpg 2>/dev/null | head -1 || ls \"$dir/$lid-\"*.thumb 2>/dev/null | head -1"
       as: photo
     
-    - sql:
+    - operation: read
+      sql:
         database: ":memory:"
         query: |
           SELECT 

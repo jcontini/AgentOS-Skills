@@ -17,7 +17,7 @@
     },
     "description": {
       "type": "string",
-      "description": "One-line description of what this connector does"
+      "description": "One-line description of what this plugin does"
     },
     "icon": {
       "type": "string",
@@ -140,7 +140,13 @@
     "singleAction": {
       "type": "object",
       "description": "Single action implementation",
+      "required": ["operation"],
       "properties": {
+        "operation": {
+          "type": "string",
+          "description": "CRUD operation type: read (no side effects), create (new record), update (modify existing), delete (remove record)",
+          "enum": ["read", "create", "update", "delete"]
+        },
         "provides": {
           "type": "string",
           "description": "Capability this action provides (maps to an App for UI rendering)",
@@ -194,11 +200,6 @@
         "label": {
           "type": "string",
           "description": "Human-readable action label"
-        },
-        "readonly": {
-          "type": "boolean",
-          "description": "Whether this action only reads data (no side effects)",
-          "default": true
         },
         "params": {
           "type": "object",
@@ -316,7 +317,7 @@
         },
         "database": {
           "type": "string",
-          "description": "Database path (overrides connector-level)"
+          "description": "Database path (overrides plugin-level)"
         }
       }
     },

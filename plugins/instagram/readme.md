@@ -186,9 +186,9 @@ instructions: |
 
 actions:
   list_conversations:
+    operation: read
     label: "List conversations"
     description: List all Instagram DM conversations
-    readonly: true
     params:
       limit: 
         type: number
@@ -225,9 +225,9 @@ actions:
           connector: "'instagram'"
 
   get_conversation:
+    operation: read
     label: "Get conversation"
     description: Get conversation details
-    readonly: true
     params:
       conversation_id:
         type: string
@@ -255,9 +255,9 @@ actions:
           connector: "'instagram'"
 
   list:
+    operation: read
     label: "List messages"
     description: List messages in a conversation
-    readonly: true
     params:
       conversation_id:
         type: string
@@ -296,9 +296,9 @@ actions:
           connector: "'instagram'"
 
   get:
+    operation: read
     label: "Get message"
     description: Get a specific message
-    readonly: true
     params:
       message_id:
         type: string
@@ -327,9 +327,9 @@ actions:
           connector: "'instagram'"
 
   search:
+    operation: read
     label: "Search messages"
     description: Search messages by text
-    readonly: true
     params:
       query:
         type: string
@@ -355,9 +355,9 @@ actions:
           connector: "'instagram'"
 
   get_unread:
+    operation: read
     label: "Get unread"
     description: Get unread messages
-    readonly: true
     params:
       limit:
         type: number
@@ -381,9 +381,9 @@ actions:
           connector: "'instagram'"
 
   get_presence:
+    operation: read
     label: "Get presence"
     description: Check if users are online
-    readonly: true
     params:
       user_ids:
         type: array
@@ -408,6 +408,7 @@ actions:
 # ============================================================================
 
   send:
+    operation: create
     label: "Send message"
     description: Send a message to an existing conversation
     params:
@@ -447,6 +448,7 @@ actions:
           connector: "'instagram'"
 
   send_to_user:
+    operation: create
     label: "Send to user"
     description: Start a new conversation with a user
     params:
@@ -479,6 +481,7 @@ actions:
           connector: "'instagram'"
 
   react:
+    operation: create
     label: "Add reaction"
     description: React to a message with an emoji
     params:
@@ -506,6 +509,7 @@ actions:
           success: ".status == 'ok'"
 
   unreact:
+    operation: delete
     label: "Remove reaction"
     description: Remove a reaction from a message
     params:
@@ -527,6 +531,7 @@ actions:
           success: ".status == 'ok'"
 
   mark_read:
+    operation: update
     label: "Mark read"
     description: Mark a message as seen/read
     params:
@@ -549,6 +554,7 @@ actions:
           success: ".status == 'ok'"
 
   mark_unread:
+    operation: update
     label: "Mark unread"
     description: Mark a conversation as unread
     params:
@@ -565,6 +571,7 @@ actions:
           success: ".status == 'ok'"
 
   delete:
+    operation: delete
     label: "Delete message"
     description: Unsend/delete a message
     params:
@@ -584,6 +591,7 @@ actions:
           success: ".status == 'ok'"
 
   mute:
+    operation: update
     label: "Mute"
     description: Mute conversation notifications
     params:
@@ -600,6 +608,7 @@ actions:
           success: ".status == 'ok'"
 
   unmute:
+    operation: update
     label: "Unmute"
     description: Unmute conversation notifications
     params:
@@ -616,6 +625,7 @@ actions:
           success: ".status == 'ok'"
 
   archive:
+    operation: update
     label: "Archive"
     description: Hide/archive a conversation
     params:
@@ -633,6 +643,7 @@ actions:
           success: ".status == 'ok'"
 
   send_typing:
+    operation: update
     label: "Send typing"
     description: Show typing indicator (call periodically while typing)
     params:

@@ -20,6 +20,7 @@ instructions: |
 # Action implementations (merged from mapping.yaml)
 actions:
   search:
+    operation: read
     label: "Search Reddit"
     description: "Search posts across all of Reddit or within a specific subreddit"
     command:
@@ -46,6 +47,7 @@ actions:
         connector: "'reddit'"
 
   read:
+    operation: read
     label: "Read Reddit URL"
     description: "Get data from any Reddit URL (subreddit, post, user profile)"
     command:
@@ -62,6 +64,7 @@ actions:
         connector: "'reddit'"
 
   subreddit:
+    operation: read
     label: "Get subreddit posts"
     description: "Get recent posts from a subreddit"
     command:
@@ -89,6 +92,7 @@ actions:
         connector: "'reddit'"
 
   post:
+    operation: read
     label: "Get post with comments"
     description: "Get a Reddit post and its comments by post ID"
     command:

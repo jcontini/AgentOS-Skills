@@ -30,7 +30,7 @@ instructions: |
 # Action implementations (merged from mapping.yaml)
 actions:
   list:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -49,7 +49,7 @@ actions:
         LIMIT {{params.limit | default: 30}}
 
   get:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -74,7 +74,7 @@ actions:
       mapping: ".[0]"
 
   search:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -91,7 +91,7 @@ actions:
         LIMIT {{params.limit | default: 30}}
 
   unreviewed:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -110,7 +110,7 @@ actions:
         LIMIT {{params.limit | default: 50}}
 
   spending_by_month:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -126,7 +126,7 @@ actions:
         ORDER BY month DESC
 
   spending_by_merchant:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -145,7 +145,7 @@ actions:
         LIMIT {{params.limit | default: 25}}
 
   spending_by_category:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -161,7 +161,7 @@ actions:
         ORDER BY total_spending DESC
 
   balances:
-    readonly: true
+    operation: read
     sql:
       query: |
         SELECT 
@@ -178,6 +178,7 @@ actions:
         )
 
   recategorize:
+    operation: update
     sql:
       query: |
         UPDATE Transactions 
@@ -189,6 +190,7 @@ actions:
       mapping: ".[0]"
 
   add_note:
+    operation: update
     sql:
       query: |
         UPDATE Transactions 
@@ -199,6 +201,7 @@ actions:
       mapping: ".[0]"
 
   hide:
+    operation: update
     sql:
       query: |
         UPDATE Transactions 
@@ -209,6 +212,7 @@ actions:
       mapping: ".[0]"
 
   unhide:
+    operation: update
     sql:
       query: |
         UPDATE Transactions 
@@ -219,6 +223,7 @@ actions:
       mapping: ".[0]"
 
   mark_reviewed:
+    operation: update
     sql:
       query: |
         UPDATE Transactions 

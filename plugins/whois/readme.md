@@ -11,6 +11,7 @@ auth:
 # Action implementations (merged from mapping.yaml)
 actions:
   whois:
+    operation: read
     label: "WHOIS lookup"
     command:
       binary: whois
@@ -19,6 +20,7 @@ actions:
       timeout: 30
 
   check:
+    operation: read
     label: "Check availability"
     command:
       binary: whois

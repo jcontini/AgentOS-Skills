@@ -34,6 +34,7 @@ auth:
 
 actions:
   list:
+    operation: read
     label: "List issues"
     graphql:
       query: |
@@ -102,6 +103,7 @@ actions:
           updated_at: "[].updatedAt"
 
   get:
+    operation: read
     label: "Get issue"
     graphql:
       query: |
@@ -165,6 +167,7 @@ actions:
           updated_at: ".updatedAt"
 
   create:
+    operation: create
     label: "Create issue"
     graphql:
       query: |
@@ -198,6 +201,7 @@ actions:
           connector: "'linear'"
 
   update:
+    operation: update
     label: "Update issue"
     graphql:
       query: |
@@ -230,7 +234,8 @@ actions:
 
   complete:
     # Chained executor: first find the completed state, then update the issue
-    - graphql:
+    - operation: read
+      graphql:
         query: |
           query($id: String!) {
             issue(id: $id) {
@@ -244,7 +249,8 @@ actions:
         variables:
           id: "{{params.id}}"
       as: lookup
-    - graphql:
+    - operation: update
+      graphql:
         query: |
           mutation($id: String!, $input: IssueUpdateInput!) {
             issueUpdate(id: $id, input: $input) {
@@ -266,7 +272,8 @@ actions:
 
   reopen:
     # Chained executor: first find a backlog/unstarted state, then update the issue
-    - graphql:
+    - operation: read
+      graphql:
         query: |
           query($id: String!) {
             issue(id: $id) {
@@ -280,7 +287,8 @@ actions:
         variables:
           id: "{{params.id}}"
       as: lookup
-    - graphql:
+    - operation: update
+      graphql:
         query: |
           mutation($id: String!, $input: IssueUpdateInput!) {
             issueUpdate(id: $id, input: $input) {
@@ -301,6 +309,7 @@ actions:
             connector: "'linear'"
 
   delete:
+    operation: delete
     label: "Delete issue"
     graphql:
       query: |
@@ -315,6 +324,7 @@ actions:
           success: ".success"
 
   projects:
+    operation: read
     label: "List projects"
     graphql:
       query: "{ projects { nodes { id name state } } }"
@@ -327,6 +337,7 @@ actions:
 
   # Relationship actions
   add_blocker:
+    operation: create
     label: "Add blocker"
     graphql:
       query: |
@@ -347,6 +358,7 @@ actions:
           success: ".success"
 
   remove_blocker:
+    operation: delete
     label: "Remove blocker"
     graphql:
       query: |
@@ -364,6 +376,7 @@ actions:
           success: ".success"
 
   add_related:
+    operation: create
     label: "Add related issue"
     graphql:
       query: |
@@ -384,6 +397,7 @@ actions:
           success: ".success"
 
   remove_related:
+    operation: delete
     label: "Remove related issue"
     graphql:
       query: |
@@ -402,6 +416,7 @@ actions:
 
   # Linear-specific helper actions (formerly extended_actions)
   get_teams:
+    operation: read
     description: List all teams (needed to create issues)
     graphql:
       query: "{ teams { nodes { id key name } } }"
@@ -409,6 +424,7 @@ actions:
         root: "data.teams.nodes"
 
   get_workflow_states:
+    operation: read
     description: List workflow states for a team
     params:
       team_id: { type: string, required: true }
@@ -425,6 +441,7 @@ actions:
         root: "data.workflowStates.nodes"
 
   get_cycles:
+    operation: read
     description: List cycles for a team
     params:
       team_id: { type: string, required: true }

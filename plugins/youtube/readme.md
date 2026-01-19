@@ -17,8 +17,8 @@ requires:
 # Action implementations (merged from mapping.yaml)
 actions:
   metadata:
+    operation: read
     label: Get video info
-    readonly: true
     command:
       binary: yt-dlp
       args:
@@ -40,8 +40,8 @@ actions:
         type: video
 
   transcribe:
+    operation: read
     label: Get transcript
-    readonly: true
     command:
       binary: yt-dlp
       args:
@@ -59,6 +59,7 @@ actions:
       timeout: 120
 
   download:
+    operation: create
     label: Download video
     command:
       binary: yt-dlp
@@ -76,6 +77,7 @@ actions:
         path: "{{output}}"
 
   audio:
+    operation: create
     label: Extract audio (mp3)
     command:
       binary: yt-dlp

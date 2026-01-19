@@ -27,6 +27,7 @@ instructions: |
 # Each action declares which capability it provides and maps to the unified schema
 actions:
   search:
+    operation: read
     provides: web_search
     label: "Search web"
     rest:
@@ -46,6 +47,7 @@ actions:
           published_at: ".publishedDate"
 
   read:
+    operation: read
     provides: web_read
     label: "Read URL"
     rest:

@@ -35,6 +35,7 @@ instructions: |
 # Action implementations (merged from mapping.yaml)
 actions:
   calendars:
+    operation: read
     label: "List calendars"
     description: List all available calendars
     swift:
@@ -97,6 +98,7 @@ actions:
           connector: "'apple'"
 
   list:
+    operation: read
     label: "List events"
     description: List calendar events within a date range
     params:
@@ -268,6 +270,7 @@ actions:
           connector: "'apple'"
 
   get:
+    operation: read
     label: "Get event"
     description: Get full details of a specific event
     params:
@@ -373,6 +376,7 @@ actions:
           connector: "'apple'"
 
   create:
+    operation: create
     label: "Create event"
     description: Create a new calendar event
     params:
@@ -509,6 +513,7 @@ actions:
           connector: "'apple'"
 
   update:
+    operation: update
     label: "Update event"
     description: Update an existing calendar event
     params:
@@ -611,6 +616,7 @@ actions:
           connector: "'apple'"
 
   delete:
+    operation: delete
     label: "Delete event"
     description: Delete a calendar event
     params:

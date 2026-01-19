@@ -27,6 +27,7 @@ instructions: |
 # Action implementations (merged from mapping.yaml)
 actions:
   open:
+    operation: read
     label: "Open file, URL, or app"
     description: Open a file with default app, launch a URL, or start an application
     command:
@@ -37,6 +38,7 @@ actions:
       raw: true
 
   browse:
+    operation: read
     label: "List directory"
     description: List directory contents
     command:
@@ -48,6 +50,7 @@ actions:
       raw: true
 
   browse_tree:
+    operation: read
     label: "Directory tree view"
     description: Show directory as a tree structure
     command:
@@ -60,6 +63,7 @@ actions:
       raw: true
 
   read:
+    operation: read
     label: "Read file"
     description: Read file contents
     command:
@@ -70,6 +74,7 @@ actions:
       raw: true
 
   read_pdf:
+    operation: read
     label: "Read PDF file"
     description: Extract text from PDF file
     command:
@@ -82,6 +87,7 @@ actions:
       raw: true
 
   decrypt_pdf:
+    operation: update
     label: "Decrypt PDF file"
     description: Remove password protection from a PDF (requires password)
     command:
@@ -93,6 +99,7 @@ actions:
         - "{{params.output}}"
 
   read_docx:
+    operation: read
     label: "Read Word document"
     description: Extract text from DOCX file
     command:
@@ -106,6 +113,7 @@ actions:
       raw: true
 
   file_info:
+    operation: read
     label: "Get file info"
     description: Get file type and metadata
     command:
@@ -118,6 +126,7 @@ actions:
       raw: true
 
   write:
+    operation: create
     label: "Write file"
     description: Create or overwrite a file
     command:
@@ -128,6 +137,7 @@ actions:
       stdin: "{{params.content}}"
 
   mkdir:
+    operation: create
     label: "Create directory"
     description: Create directory (and parents if needed)
     command:
@@ -137,6 +147,7 @@ actions:
         - "{{params.path}}"
 
   move:
+    operation: update
     label: "Move file or directory"
     description: Move or rename to new location
     command:
@@ -146,6 +157,7 @@ actions:
         - "{{params.to}}"
 
   copy:
+    operation: create
     label: "Copy file"
     description: Copy file to new location
     command:
@@ -155,6 +167,7 @@ actions:
         - "{{params.to}}"
 
   copy_recursive:
+    operation: create
     label: "Copy directory"
     description: Copy directory recursively
     command:
@@ -165,6 +178,7 @@ actions:
         - "{{params.to}}"
 
   delete:
+    operation: delete
     label: "Delete file"
     description: Delete a single file
     command:
@@ -173,6 +187,7 @@ actions:
         - "{{params.path}}"
 
   delete_recursive:
+    operation: delete
     label: "Delete directory"
     description: Delete directory and contents
     command:
@@ -182,6 +197,7 @@ actions:
         - "{{params.path}}"
 
   rename:
+    operation: update
     label: "Rename file or directory"
     description: Rename in place (provide full destination path)
     command:
