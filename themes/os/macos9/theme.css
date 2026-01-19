@@ -2404,80 +2404,144 @@ progress:not([value])::-webkit-progress-value {
   color: #c00;
 }
 
-/* Individual plugin item - card style */
-.plugin-item {
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  background: #f8f8f8;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: inset 1px 1px 0 #fff;
+/* =============================================================================
+   Plugin List - Master/Detail Layout
+   ============================================================================= */
+
+/* Master-detail container - override base flex-direction */
+.plugin-list--master-detail {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  height: 100%;
+  min-height: 300px;
 }
 
-.plugin-item:last-child {
-  margin-bottom: 0;
+/* Left pane: table list */
+.plugin-list-master {
+  flex: 0 0 55%;
+  overflow: auto;
+  border-right: 1px solid #000;
+  box-shadow: 1px 0 0 #fff;
 }
 
-/* Disabled plugin appearance */
-.plugin-item:has(input[type=checkbox]:not(:checked)) {
+.plugin-list-master .detailed {
+  min-width: 100%;
+}
+
+.plugin-list-master .detailed tbody tr {
+  cursor: pointer;
+}
+
+.plugin-list-master .detailed tbody tr:hover:not([aria-selected="true"]) {
   background: #f0f0f0;
-  opacity: 0.7;
 }
 
-.plugin-item-header {
+/* Disabled plugin text */
+.plugin-disabled {
+  color: #888;
+}
+
+/* Right pane: details */
+.plugin-list-detail {
+  flex: 1;
+  overflow: auto;
+  background: #f5f5f5;
+  min-width: 200px;
+}
+
+/* Detail panel */
+.plugin-detail {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plugin-detail--empty {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  height: 100%;
+  color: #888;
+  font-size: 12px;
 }
 
-.plugin-item-toggle {
+.plugin-detail-empty-text {
+  text-align: center;
+}
+
+.plugin-detail-header {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
 }
 
-.plugin-item-toggle input[type=checkbox] {
-  cursor: pointer;
-}
-
-.plugin-item-name {
+.plugin-detail-name {
+  margin: 0;
+  font-size: 16px;
   font-weight: bold;
-  font-size: 13px;
   color: #000;
 }
 
-.plugin-item-description {
-  font-size: 11px;
-  color: #444;
-  margin-top: 4px;
-  margin-left: 20px; /* Align with name (checkbox width + gap) */
-  line-height: 1.4;
-}
-
-.plugin-item-meta {
+.plugin-detail-toggle {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  margin-left: 20px;
-  font-size: 10px;
-  color: #666;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #555;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.plugin-item-operations {
-  background: var(--primary-5);
-  color: var(--primary-1);
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 500;
+.plugin-detail-toggle input {
+  cursor: pointer;
 }
 
-.plugin-item-utilities {
-  background: #d4edda;
-  color: #155724;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 500;
+.plugin-detail-description {
+  margin: 0;
+  font-size: 12px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.plugin-detail-section {
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.plugin-detail-section legend {
+  font-weight: bold;
+  font-size: 11px;
+}
+
+.plugin-detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.plugin-detail-list-item {
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 11px;
+  color: #333;
+  padding: 2px 0;
+}
+
+.plugin-detail-list-item::before {
+  content: "• ";
+  color: #888;
+}
+
+.plugin-detail-no-tools {
+  margin: 0;
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
 }
 
 /* =============================================================================
