@@ -12,6 +12,10 @@ platform: macos
 # No auth block = no credentials needed (local system access)
 # Uses macOS permissions: Contacts
 
+testing:
+  exempt:
+    cleanup: "Tests only verify list/read behavior, do not create contacts"
+
 instructions: |
   Apple Contacts connector with multi-account support (iCloud, local, work, etc.).
   

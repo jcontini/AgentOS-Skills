@@ -1,45 +1,71 @@
 # Pre-commit: Fast validation (~1s)
 # - Schema validation (catches malformed YAML)
 # - Security checks (catches credential exposure)
+# - Test linting (catches missing patterns)
 # Full integration tests run on pre-push
 
 STAGED_READMES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^plugins/[^/]+/readme\.md$' || true)
+STAGED_TESTS=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^plugins/[^/]+/tests/.*\.test\.ts$' || true)
 
-if [ -z "$STAGED_READMES" ]; then
+# Nothing to check
+if [ -z "$STAGED_READMES" ] && [ -z "$STAGED_TESTS" ]; then
   exit 0
 fi
 
 ERRORS=0
 
-# === Schema Validation ===
-echo "📋 Schema validation..."
-APPS=$(echo "$STAGED_READMES" | sed 's|plugins/||' | sed 's|/readme.md||' | tr '\n' ' ')
-node tests/scripts/validate-schema.mjs $APPS || ERRORS=$((ERRORS + 1))
-
-# === Security Checks ===
-echo ""
-echo "🔒 Security checks..."
-
-# Check for credential exposure patterns
-if echo "$STAGED_READMES" | xargs grep -l '\$AUTH_TOKEN\|\${AUTH_TOKEN}' 2>/dev/null; then
-  echo "❌ BLOCKED: \$AUTH_TOKEN found - use rest: or graphql: blocks instead"
-  ERRORS=$((ERRORS + 1))
+# === Schema Validation (for readme changes) ===
+if [ -n "$STAGED_READMES" ]; then
+  echo "📋 Schema validation..."
+  APPS=$(echo "$STAGED_READMES" | sed 's|plugins/||' | sed 's|/readme.md||' | tr '\n' ' ')
+  node tests/scripts/validate-schema.mjs $APPS || ERRORS=$((ERRORS + 1))
+  echo ""
 fi
 
-if echo "$STAGED_READMES" | xargs grep -l 'curl.*[Aa]uthorization\|wget' 2>/dev/null; then
-  echo "❌ BLOCKED: curl/wget with auth - use AgentOS executors (rest:, graphql:, sql:)"
-  ERRORS=$((ERRORS + 1))
+# === Security Checks (for readme changes) ===
+if [ -n "$STAGED_READMES" ]; then
+  echo "🔒 Security checks..."
+
+  # Check for credential exposure patterns
+  if echo "$STAGED_READMES" | xargs grep -l '\$AUTH_TOKEN\|\${AUTH_TOKEN}' 2>/dev/null; then
+    echo "❌ BLOCKED: \$AUTH_TOKEN found - use rest: or graphql: blocks instead"
+    ERRORS=$((ERRORS + 1))
+  fi
+
+  if echo "$STAGED_READMES" | xargs grep -l 'curl.*[Aa]uthorization\|wget' 2>/dev/null; then
+    echo "❌ BLOCKED: curl/wget with auth - use AgentOS executors (rest:, graphql:, sql:)"
+    ERRORS=$((ERRORS + 1))
+  fi
+
+  if echo "$STAGED_READMES" | xargs grep -l 'Bearer \$' 2>/dev/null; then
+    echo "❌ BLOCKED: Bearer token interpolation - AgentOS handles auth automatically"
+    ERRORS=$((ERRORS + 1))
+  fi
+  echo ""
 fi
 
-if echo "$STAGED_READMES" | xargs grep -l 'Bearer \$' 2>/dev/null; then
-  echo "❌ BLOCKED: Bearer token interpolation - AgentOS handles auth automatically"
-  ERRORS=$((ERRORS + 1))
+# === Test Linting (for test file or readme changes) ===
+# Lint tests when either test files or readmes change (readmes affect test requirements)
+if [ -n "$STAGED_TESTS" ] || [ -n "$STAGED_READMES" ]; then
+  echo "🧪 Test linting..."
+  
+  # Get unique plugin names from both staged tests and readmes
+  PLUGINS=""
+  if [ -n "$STAGED_TESTS" ]; then
+    PLUGINS="$PLUGINS $(echo "$STAGED_TESTS" | sed 's|plugins/||' | sed 's|/tests/.*||' | sort -u | tr '\n' ' ')"
+  fi
+  if [ -n "$STAGED_READMES" ]; then
+    PLUGINS="$PLUGINS $(echo "$STAGED_READMES" | sed 's|plugins/||' | sed 's|/readme.md||' | sort -u | tr '\n' ' ')"
+  fi
+  PLUGINS=$(echo "$PLUGINS" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+  
+  npx tsx tests/scripts/lint-tests.ts $PLUGINS || ERRORS=$((ERRORS + 1))
+  echo ""
 fi
 
 if [ $ERRORS -eq 0 ]; then
   echo "✅ All checks passed"
 else
-  echo ""
   echo "❌ Fix $ERRORS error(s) before committing"
   exit 1
 fi

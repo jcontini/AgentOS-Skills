@@ -14,6 +14,11 @@ auth:
   placeholder: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOi..."
   help_url: https://hardcover.app/account/api
 
+testing:
+  exempt:
+    credential_handling: "Stub test only checks readme action exists"
+    cleanup: "Stub test does not test create operations"
+
 actions:
   search:
     # Search for books on Hardcover, returns top matches sorted by popularity

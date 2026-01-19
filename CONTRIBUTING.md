@@ -1,439 +1,118 @@
 # Contributing to AgentOS
 
-This repo contains **plugins** — YAML configs that connect AgentOS to external services.
+Plugins connect AgentOS to external services. Each plugin is a YAML config that describes how to talk to an API — AgentOS handles auth, execution, and response mapping automatically.
 
-## Quick Start
+## Creating a Plugin
+
+```bash
+npm run new-plugin myservice           # API with full CRUD
+npm run new-plugin myservice --readonly # API, read-only
+npm run new-plugin myservice --local    # Local (no auth needed)
+```
+
+This generates everything you need: config, icon, and tests. Edit the generated `readme.md` with your API details and you're done.
+
+## How It Works
+
+A plugin is just a `readme.md` with YAML frontmatter:
 
 ```yaml
-# plugins/myservice/readme.md
 ---
 id: myservice
 name: My Service
-description: What this connector does
-tags: [category]  # tasks, books, messages, calendar, contacts, finance, web, etc.
-
+description: What it does
 auth:
   type: api_key
   header: Authorization
-  help_url: https://myservice.com/api-keys
 
 actions:
   list:
-    provides: task_list           # Capability for UI routing
-    description: List items
-    readonly: true
+    operation: read
     rest:
       method: GET
-      url: "https://api.myservice.com/items"
+      url: https://api.example.com/items
       response:
-        root: "data.items"        # Extract array from API response
         mapping:
-          # Map ITEM fields (not wrapper structure)
-          id: ".id"
-          title: ".name"
-          status: ".state"
+          id: "[].id"
+          title: "[].name"
 ---
 
 # My Service
 
-Human-readable documentation goes here.
+Setup instructions and documentation here.
 ```
 
-## Folder Structure
+**Key concepts:**
 
-```
-plugins/
-  linear/           # Each plugin is a folder
-    readme.md       # YAML frontmatter + markdown docs
-    icon.png        # Square icon (PNG or SVG)
-    tests/          # Optional integration tests
-      linear.test.ts
-```
+- **`operation`** — Every action declares what it does: `read`, `create`, `update`, or `delete`. This powers our security features and test requirements.
 
-## Capabilities
+- **`auth`** — Declare the auth type and AgentOS injects credentials automatically. Never put secrets in configs.
 
-Actions can declare a `provides:` field that maps to a **capability**. This tells the UI which App to use for rendering results.
-
-```yaml
-actions:
-  search:
-    provides: web_search    # → renders in Browser App
-    rest:
-      # ...
-  
-  list:
-    provides: task_list     # → renders in Tasks App
-    rest:
-      # ...
-```
-
-**Common capabilities:**
-
-| App | Capabilities |
-|-----|--------------|
-| Browser | `web_search`, `web_read` |
-| Tasks | `task_list`, `task_get`, `task_create`, `task_update`, `task_delete` |
-| Contacts | `contact_list`, `contact_get`, `contact_create`, ... |
-| Calendar | `event_list`, `event_get`, `event_create`, ... |
-| Books | `book_list`, `book_get` |
-
-**Source of truth:** See `tests/plugin.schema.json` for the full enum of valid capabilities. The schema validates `provides` values — typos will fail CI.
-
-**Response mapping:** When you declare `provides: web_search`, your response mapping must output the schema that capability expects. See the app specs in the main repo (`.specs/apps/`) for schema definitions.
-
-## Response Mapping
-
-Response mapping transforms API responses into a standard format. **This is critical for capabilities.**
-
-### The Two-Step Pattern
-
-1. **`root:`** — Extract the data array from the API response
-2. **`mapping:`** — Transform each item's fields
-
-```yaml
-# API returns: { "data": { "results": [{ "url": "...", "name": "..." }] } }
-response:
-  root: "data.results"      # Step 1: Extract array → [{url, name}, ...]
-  mapping:                  # Step 2: Map each item's fields
-    url: ".url"
-    title: ".name"          # Rename field
-    snippet: ".description"
-# Output: [{ url, title, snippet }, ...]
-```
-
-### ⚠️ Common Mistake: Wrapper Nesting
-
-**WRONG** — Creates wrapper for EACH item:
-```yaml
-response:
-  root: "results"
-  mapping:
-    results:              # ← Don't create wrapper fields!
-      each: "[]"
-      map:
-        url: ".url"
-# Output: [{ results: [] }, { results: [] }, ...]  ← BROKEN
-```
-
-**CORRECT** — Map item fields directly:
-```yaml
-response:
-  root: "results"
-  mapping:
-    url: ".url"
-    title: ".title"
-# Output: [{ url, title }, { url, title }, ...]  ← CORRECT
-```
-
-### When to Use `each: "[]"`
-
-Only use `each:` when you need to extract a nested array from each item:
-
-```yaml
-# API: [{ "id": 1, "tags": ["a", "b"] }]
-# You want: [{ "id": 1, "tag_names": ["a", "b"] }]
-response:
-  mapping:
-    id: ".id"
-    tag_names:
-      each: ".tags[]"     # ← Extract nested array
-      map: "."            # ← Keep each value as-is
-```
-
-## Executors
-
-Executors are how actions actually run. **Auth is injected automatically** — never put credentials in configs.
-
-### `rest:` — REST APIs
-
-```yaml
-actions:
-  list:
-    rest:
-      method: GET
-      url: "https://api.example.com/items?limit={{params.limit}}"
-      response:
-        mapping:
-          id: "[].id"
-          name: "[].title"
-```
-
-### `graphql:` — GraphQL APIs
-
-```yaml
-actions:
-  list:
-    graphql:
-      query: |
-        query($limit: Int) {
-          items(first: $limit) { nodes { id name } }
-        }
-      variables:
-        limit: "{{params.limit | default: 50}}"
-      response:
-        root: "data.items.nodes"
-        mapping:
-          id: "[].id"
-          name: "[].name"
-```
-
-### `sql:` — Local Databases
-
-```yaml
-actions:
-  list:
-    sql:
-      database: "~/Library/Messages/chat.db"
-      query: |
-        SELECT * FROM message 
-        WHERE text LIKE '%{{params.query}}%'
-        LIMIT {{params.limit | default: 50}}
-      response:
-        mapping:
-          id: "[].ROWID"
-          text: "[].text"
-```
-
-### `swift:` — macOS Native APIs
-
-```yaml
-actions:
-  list:
-    swift:
-      script: |
-        import Contacts
-        import Foundation
-        let store = CNContactStore()
-        // ... Swift code ...
-        print(jsonString)  // Output JSON to stdout
-```
-
-### `command:` — Shell Commands
-
-```yaml
-actions:
-  echo:
-    command:
-      binary: echo
-      args: ["{{params.message}}"]
-```
-
-## Chained Actions
-
-Chain multiple steps with `as:` to pass data between them:
-
-```yaml
-actions:
-  complete:
-    - graphql:
-        query: "{ issue(id: $id) { team { states { nodes { id } } } } }"
-        variables: { id: "{{params.id}}" }
-      as: lookup
-    - graphql:
-        query: "mutation { issueUpdate(id: $id, input: $input) { success } }"
-        variables:
-          id: "{{params.id}}"
-          input:
-            stateId: "{{lookup.data.issue.team.states.nodes[0].id}}"
-```
-
-**Access patterns by executor:**
-| Executor | Result | Access |
-|----------|--------|--------|
-| `graphql:` | Object | `{{step.data.field}}` |
-| `sql:` | Array | `{{step[0].column}}` |
-| `command:` | String | `{{step}}` |
-
-## Security
-
-**Never expose credentials.** Executors handle auth automatically.
-
-```yaml
-# Auth is injected by AgentOS — never do this:
-headers:
-  Authorization: "Bearer {{env.API_KEY}}"  # WRONG
-
-# Just declare the auth type:
-auth:
-  type: api_key
-  header: Authorization
-```
-
-The pre-commit hook blocks:
-- `$AUTH_TOKEN` or `${AUTH_TOKEN}` in configs
-- `curl`/`wget` with auth headers
-- `Bearer $` patterns
+- **Response mapping** — Transform API responses into a standard format. The `[].field` syntax maps arrays, `.field` maps single objects.
 
 ## Testing
 
-### Test Standards
+Tests are auto-generated and validated by our linter. The system:
 
-**All plugin tests must follow these standards:**
+1. **Infers requirements from your config** — If your plugin has `auth`, tests must handle missing credentials gracefully. If it has `create` operations, tests must clean up test data.
 
-1. **Real APIs, real credentials** — Tests call actual APIs using your production credentials. No mocking.
+2. **Enforces standards automatically** — The pre-commit hook runs the linter. If something's missing, it tells you what to add.
 
-2. **Graceful credential handling** — Tests MUST skip gracefully if credentials aren't configured:
-   ```typescript
-   beforeAll(async () => {
-     try {
-       await aos().call('UsePlugin', { plugin, tool: 'list', params: { limit: 1 } });
-     } catch (e: any) {
-       if (e.message?.includes('Credential not found')) {
-         skipTests = true;  // Skip remaining tests
-       }
-     }
-   });
-   ```
-
-3. **Cleanup test data** — Any data created must be cleaned up in `afterAll()`:
-   ```typescript
-   afterAll(async () => {
-     for (const item of createdItems) {
-       await aos().call('UsePlugin', { plugin, tool: 'delete', params: { id: item.id }, execute: true });
-     }
-   });
-   ```
-
-4. **Test prefix** — Use `[TEST]` prefix via `testContent('name')` for easy identification.
-
-5. **Schema validation** — Verify responses have required fields (`id`, `title`, etc.).
-
-6. **Document limitations** — If an API doesn't support something (e.g., `limit` param), skip the test with a TODO comment.
-
-### Automatic Capability Tests
-
-**Plugins that declare `provides:` are automatically tested against the capability schema.**
-
-If your action has `provides: web_search`, the generic capability test will:
-1. Call your action with test params
-2. Validate the response matches the `web_search` schema
-3. Fail if fields are missing or wrong type
-
-This catches response mapping bugs without writing per-plugin tests.
+3. **Supports exemptions** — Edge cases can opt out with a documented reason in the YAML.
 
 ```bash
-npm test                           # All tests
-TEST_PLUGIN=exa npm test           # Single plugin
+npm run lint:tests           # Check your tests
+npm test plugins/myservice   # Run your tests
 ```
 
-### Custom Integration Tests
-
-For additional tests (CRUD flows, edge cases), add per-plugin tests:
-
-```typescript
-// plugins/myservice/tests/myservice.test.ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { aos, testContent, TEST_PREFIX } from '../../../tests/utils/fixtures';
-
-const plugin = 'myservice';
-const createdItems: Array<{ id: string }> = [];
-let skipTests = false;
-
-describe('My Service Plugin', () => {
-  beforeAll(async () => {
-    // Check credentials
-    try {
-      await aos().call('UsePlugin', { plugin, tool: 'list', params: { limit: 1 } });
-    } catch (e: any) {
-      if (e.message?.includes('Credential not found')) {
-        console.log('  ⏭ Skipping: no credentials configured');
-        skipTests = true;
-      } else throw e;
-    }
-  });
-
-  afterAll(async () => {
-    // Cleanup
-    for (const item of createdItems) {
-      try {
-        await aos().call('UsePlugin', { plugin, tool: 'delete', params: { id: item.id }, execute: true });
-      } catch (e) { /* ignore cleanup errors */ }
-    }
-  });
-
-  it('can list items', async () => {
-    if (skipTests) return;
-    
-    const result = await aos().call('UsePlugin', {
-      plugin,
-      tool: 'list',
-      params: { limit: 5 }
-    });
-    
-    expect(Array.isArray(result)).toBe(true);
-    for (const item of result) {
-      expect(item.id).toBeDefined();
-      expect(item.plugin).toBe(plugin);
-    }
-  });
-
-  it('can create and delete an item', async () => {
-    if (skipTests) return;
-    
-    const created = await aos().call('UsePlugin', {
-      plugin,
-      tool: 'create',
-      params: { title: testContent('test item') },
-      execute: true
-    });
-    
-    expect(created.id).toBeDefined();
-    createdItems.push({ id: created.id });
-    
-    // Delete immediately (or let afterAll handle it)
-    await aos().call('UsePlugin', {
-      plugin,
-      tool: 'delete', 
-      params: { id: created.id },
-      execute: true
-    });
-    createdItems.pop();
-  });
-});
-```
+## Commands
 
 ```bash
-npm test                         # All tests
-npm test plugins/myservice       # Single plugin
+npm run new-plugin <name>    # Create a new plugin
+npm run lint:tests           # Validate test patterns
+npm run validate             # Validate plugin schemas
+npm test                     # Run all tests
 ```
 
 ## Git Hooks
 
-| Hook | What runs | Speed |
-|------|-----------|-------|
-| `pre-commit` | Schema validation, security checks | ~1s |
-| `pre-push` | Full integration tests for changed files | varies |
+Everything is validated before you can commit:
+
+- **Schema validation** — Catches malformed YAML
+- **Security checks** — Blocks credential exposure
+- **Test linting** — Ensures tests follow standards
+
+If the hook fails, it tells you exactly what to fix.
+
+## Executors
+
+Plugins support multiple backends:
+
+| Executor | Use Case |
+|----------|----------|
+| `rest:` | REST APIs |
+| `graphql:` | GraphQL APIs |
+| `sql:` | Local databases |
+| `swift:` | macOS native APIs |
+| `command:` | Shell commands |
+
+See existing plugins for examples: `linear` (GraphQL), `exa` (REST), `imessage` (SQL), `apple-contacts` (Swift).
+
+## Philosophy
+
+**We enforce, not instruct.** The scaffold generates correct code. The linter catches mistakes. The hooks block bad commits. You focus on the API integration — we handle the standards.
+
+**Real credentials, real APIs.** Tests call actual APIs with your production credentials. No mocking. This catches real bugs.
+
+**Graceful degradation.** Tests skip if credentials aren't configured. Contributors without API keys can still run the test suite.
+
+**Clean up after yourself.** If tests create data, they delete it. The linter enforces this for any plugin with `create` operations.
 
 ## Reference
 
-### Schema (Source of Truth)
-
-**`tests/plugin.schema.json`** — JSON Schema that validates all plugin configs. Contains:
-- All valid `provides:` capability values (enum)
-- Required fields and types
-- Auth configuration options
-- Executor definitions
-
-### Example Plugins
-
-| Pattern | Example |
-|---------|---------|
-| REST + capabilities | `plugins/exa/readme.md` |
-| REST API | `plugins/demo/readme.md` |
-| GraphQL API | `plugins/linear/readme.md` |
-| Local SQLite | `plugins/imessage/readme.md` |
-| macOS Swift | `plugins/apple-calendar/readme.md` |
-| Cookie auth | `plugins/instagram/readme.md` |
-
-## Checklist
-
-Before submitting:
-
-- [ ] `id` is lowercase with hyphens (`my-service`)
-- [ ] `tags` includes at least one category
-- [ ] `provides:` set on actions (see `tests/connector.schema.json` for valid values)
-- [ ] Response mapping matches capability schema
-- [ ] `readonly: true` on read-only actions
-- [ ] Icon is square PNG or SVG
-- [ ] No credentials in config
-- [ ] Tests pass (if added)
+| Resource | Purpose |
+|----------|---------|
+| `tests/plugin.schema.json` | Schema for valid configs |
+| `plugins/linear/` | GraphQL example |
+| `plugins/exa/` | REST example |
+| `plugins/goodreads/` | Local file example |

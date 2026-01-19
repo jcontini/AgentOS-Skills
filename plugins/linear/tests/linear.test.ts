@@ -21,18 +21,30 @@ const createdItems: Array<{ id: string }> = [];
 // Team ID discovered at runtime
 let teamId: string | undefined;
 
+// Skip tests if no credentials configured
+let skipTests = false;
+
 describe('Linear Plugin', () => {
   beforeAll(async () => {
-    // Get the first available team for creating issues
-    const tasks = await aos().call('UsePlugin', {
-      ...baseParams,
-      tool: 'list',
-      params: { limit: 1 },
-    });
-    
-    if (tasks.length > 0 && tasks[0].team?.id) {
-      teamId = tasks[0].team.id;
-      console.log(`  Using team: ${tasks[0].team.name || teamId}`);
+    try {
+      // Get the first available team for creating issues
+      const tasks = await aos().call('UsePlugin', {
+        ...baseParams,
+        tool: 'list',
+        params: { limit: 1 },
+      });
+      
+      if (tasks.length > 0 && tasks[0].team?.id) {
+        teamId = tasks[0].team.id;
+        console.log(`  Using team: ${tasks[0].team.name || teamId}`);
+      }
+    } catch (e: any) {
+      if (e.message?.includes('Credential not found')) {
+        console.log('  ⏭ Skipping Linear tests: no credentials configured');
+        skipTests = true;
+      } else {
+        throw e;
+      }
     }
   });
 
@@ -54,6 +66,8 @@ describe('Linear Plugin', () => {
 
   describe('list', () => {
     it('returns an array of tasks', async () => {
+      if (skipTests) return;
+      
       const tasks = await aos().call('UsePlugin', {
         ...baseParams,
         tool: 'list',
@@ -64,6 +78,8 @@ describe('Linear Plugin', () => {
     });
 
     it('tasks have required schema fields', async () => {
+      if (skipTests) return;
+      
       const tasks = await aos().call('UsePlugin', {
         ...baseParams,
         tool: 'list',
@@ -81,6 +97,8 @@ describe('Linear Plugin', () => {
     });
 
     it('respects limit parameter', async () => {
+      if (skipTests) return;
+      
       const tasks = await aos().call('UsePlugin', {
         ...baseParams,
         tool: 'list',
@@ -95,6 +113,7 @@ describe('Linear Plugin', () => {
     let createdTask: any;
 
     it('can create a task', async () => {
+      if (skipTests) return;
       if (!teamId) {
         console.log('  Skipping: no team_id discovered');
         return;
@@ -121,6 +140,7 @@ describe('Linear Plugin', () => {
     });
 
     it('can get the created task', async () => {
+      if (skipTests) return;
       if (!createdTask?.id) {
         console.log('  Skipping: no task was created');
         return;
@@ -138,6 +158,7 @@ describe('Linear Plugin', () => {
     });
 
     it('can update the task', async () => {
+      if (skipTests) return;
       if (!createdTask?.id) {
         console.log('  Skipping: no task was created');
         return;
@@ -159,6 +180,7 @@ describe('Linear Plugin', () => {
     });
 
     it('can complete the task', async () => {
+      if (skipTests) return;
       if (!createdTask?.id) {
         console.log('  Skipping: no task was created');
         return;
@@ -175,6 +197,7 @@ describe('Linear Plugin', () => {
     });
 
     it('can delete the task', async () => {
+      if (skipTests) return;
       if (!createdTask?.id) {
         console.log('  Skipping: no task was created');
         return;
@@ -197,6 +220,8 @@ describe('Linear Plugin', () => {
 
   describe('projects', () => {
     it('can list projects', async () => {
+      if (skipTests) return;
+      
       const projects = await aos().call('UsePlugin', {
         ...baseParams,
         tool: 'projects',

@@ -9,6 +9,11 @@ tags: [messages, chat, conversations]
 website: https://www.instagram.com
 platform: all
 
+testing:
+  exempt:
+    credential_handling: "All tests skipped pending Playwright executor implementation"
+    cleanup: "All tests skipped pending Playwright executor implementation"
+
 # ============================================================================
 # AUTHENTICATION
 # ============================================================================
