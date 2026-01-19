@@ -22,7 +22,7 @@ describe('Todoist Plugin', () => {
     try {
       await aos().call('UsePlugin', {
         plugin,
-        tool: 'list',
+        tool: 'task.list',
         params: { limit: 1 },
       });
     } catch (e: any) {
@@ -41,7 +41,7 @@ describe('Todoist Plugin', () => {
       try {
         await aos().call('UsePlugin', {
           plugin,
-          tool: 'delete',
+          tool: 'task.delete',
           params: { id: item.id },
           execute: true,
         });
@@ -51,13 +51,13 @@ describe('Todoist Plugin', () => {
     }
   });
 
-  describe('list', () => {
+  describe('task.list', () => {
     it('returns an array of tasks', async () => {
       if (skipTests) return;
       
       const tasks = await aos().call('UsePlugin', {
         plugin,
-        tool: 'list',
+        tool: 'task.list',
         params: { limit: 5 },
       });
 
@@ -69,7 +69,7 @@ describe('Todoist Plugin', () => {
       
       const tasks = await aos().call('UsePlugin', {
         plugin,
-        tool: 'list',
+        tool: 'task.list',
         params: { limit: 5 },
       });
 
@@ -86,7 +86,7 @@ describe('Todoist Plugin', () => {
       
       const tasks = await aos().call('UsePlugin', {
         plugin,
-        tool: 'list',
+        tool: 'task.list',
         params: { limit: 3 },
       });
 
@@ -94,10 +94,10 @@ describe('Todoist Plugin', () => {
     });
   });
 
-  describe('create → get → update → delete', () => {
+  describe('task CRUD', () => {
     let createdTask: any;
 
-    it('can create a task', async () => {
+    it('task.create - can create a task', async () => {
       if (skipTests) {
         console.log('  Skipping: no credentials');
         return;
@@ -107,7 +107,7 @@ describe('Todoist Plugin', () => {
       
       createdTask = await aos().call('UsePlugin', {
         plugin,
-        tool: 'create',
+        tool: 'task.create',
         params: {
           title,
           description: 'Created by AgentOS integration test',
@@ -121,7 +121,7 @@ describe('Todoist Plugin', () => {
       createdItems.push({ id: createdTask.id });
     });
 
-    it('can get the created task', async () => {
+    it('task.get - can get the created task', async () => {
       if (skipTests || !createdTask?.id) {
         console.log('  Skipping: no task was created');
         return;
@@ -129,7 +129,7 @@ describe('Todoist Plugin', () => {
 
       const task = await aos().call('UsePlugin', {
         plugin,
-        tool: 'get',
+        tool: 'task.get',
         params: { id: createdTask.id },
       });
 
@@ -138,7 +138,7 @@ describe('Todoist Plugin', () => {
       expect(task.title).toContain(TEST_PREFIX);
     });
 
-    it('can update the task', async () => {
+    it('task.update - can update the task', async () => {
       if (skipTests || !createdTask?.id) {
         console.log('  Skipping: no task was created');
         return;
@@ -148,7 +148,7 @@ describe('Todoist Plugin', () => {
       
       const updated = await aos().call('UsePlugin', {
         plugin,
-        tool: 'update',
+        tool: 'task.update',
         params: {
           id: createdTask.id,
           title: newTitle,
@@ -159,7 +159,7 @@ describe('Todoist Plugin', () => {
       expect(updated).toBeDefined();
     });
 
-    it('can complete the task', async () => {
+    it('task.complete - can complete the task', async () => {
       if (skipTests || !createdTask?.id) {
         console.log('  Skipping: no task was created');
         return;
@@ -167,7 +167,7 @@ describe('Todoist Plugin', () => {
 
       const result = await aos().call('UsePlugin', {
         plugin,
-        tool: 'complete',
+        tool: 'task.complete',
         params: { id: createdTask.id },
         execute: true,
       });
@@ -175,7 +175,7 @@ describe('Todoist Plugin', () => {
       expect(result).toBeDefined();
     });
 
-    it('can delete the task', async () => {
+    it('task.delete - can delete the task', async () => {
       if (skipTests || !createdTask?.id) {
         console.log('  Skipping: no task was created');
         return;
@@ -183,7 +183,7 @@ describe('Todoist Plugin', () => {
 
       const result = await aos().call('UsePlugin', {
         plugin,
-        tool: 'delete',
+        tool: 'task.delete',
         params: { id: createdTask.id },
         execute: true,
       });
@@ -196,13 +196,13 @@ describe('Todoist Plugin', () => {
     });
   });
 
-  describe('projects', () => {
-    it('can list projects', async () => {
+  describe('project.list', () => {
+    it('returns an array of projects', async () => {
       if (skipTests) return;
       
       const projects = await aos().call('UsePlugin', {
         plugin,
-        tool: 'projects',
+        tool: 'project.list',
       });
 
       expect(Array.isArray(projects)).toBe(true);
@@ -210,6 +210,24 @@ describe('Todoist Plugin', () => {
       for (const project of projects) {
         expect(project.id).toBeDefined();
         expect(project.name).toBeDefined();
+      }
+    });
+  });
+
+  describe('label.list', () => {
+    it('returns an array of labels', async () => {
+      if (skipTests) return;
+      
+      const labels = await aos().call('UsePlugin', {
+        plugin,
+        tool: 'label.list',
+      });
+
+      expect(Array.isArray(labels)).toBe(true);
+      
+      for (const label of labels) {
+        expect(label.id).toBeDefined();
+        expect(label.name).toBeDefined();
       }
     });
   });
