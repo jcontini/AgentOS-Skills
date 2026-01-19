@@ -405,7 +405,7 @@ describe('Todoist Plugin', () => {
       createdItems.pop();
     });
 
-    it('default priority is 1 (normal)', async () => {
+    it('default priority is 4 (lowest in AgentOS scale)', async () => {
       if (skipTests) return;
 
       const task = await aos().call('UsePlugin', {
@@ -419,8 +419,10 @@ describe('Todoist Plugin', () => {
 
       createdItems.push({ id: task.id, type: 'task' });
       
-      // Default priority in Todoist is 1
-      expect(task.priority).toBe(1);
+      // Todoist default is 1 (normal), which maps to AgentOS 4 (lowest) via invert:5
+      // Todoist: 1=normal, 2=high, 3=higher, 4=urgent
+      // AgentOS: 4=lowest, 3=low, 2=high, 1=highest (after invert:5)
+      expect(task.priority).toBe(4);
       
       // Clean up
       await aos().call('UsePlugin', {

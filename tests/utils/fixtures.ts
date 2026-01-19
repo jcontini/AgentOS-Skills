@@ -4,7 +4,7 @@
  * Common utilities for integration tests.
  */
 
-import { getAgentOS, AgentOS } from './mcp-client';
+import { getAgentOS, AgentOS } from './http-client';
 
 /** Test data prefix for easy identification and cleanup */
 export const TEST_PREFIX = '[TEST]';
