@@ -300,23 +300,371 @@ operations:
 
 ## Components
 
-TSX files dynamically loaded and transpiled.
+TSX files dynamically loaded and transpiled by the server.
 
-**Location:** `components/{name}.tsx`
+**Location:** `components/{name}.tsx` or `components/{category}/{name}.tsx`
 
-**Rules:** Import React explicitly, export default, TypeScript interfaces, no heavy deps.
+```
+components/
+  list.tsx           # Core primitives
+  text.tsx
+  markdown.tsx
+  layout/
+    stack.tsx        # Layout components
+    scroll-area.tsx
+  items/
+    search-result.tsx   # Item renderers for lists
+    history-item.tsx
+```
 
-**Examples:** `components/list.tsx`, `components/markdown.tsx`
+### Rules
+
+1. **Import React explicitly** — `import React from 'react'`
+2. **Export default** — `export default MyComponent`
+3. **TypeScript interfaces for props** — document your component's API
+4. **No heavy deps** — avoid Zod, lodash, etc. (breaks ESM bundling)
+5. **Accept both `children` and `content`** — YAML templates use `content` prop
+
+### Example Component
+
+```tsx
+import React from 'react';
+
+interface MyItemProps {
+  title: string;
+  description?: string;
+  // For YAML templates, accept content as alternative to children
+  content?: string;
+  children?: React.ReactNode;
+}
+
+export function MyItem({ title, description, content, children }: MyItemProps) {
+  return (
+    <div className="my-item">
+      <span className="my-item-title">{title}</span>
+      {description && <span className="my-item-desc">{description}</span>}
+      {children ?? content}
+    </div>
+  );
+}
+
+export default MyItem;
+```
+
+### Styling
+
+Components use class names that themes style. Add your component's CSS to the theme:
+
+```css
+/* In themes/os/macos9/theme.css */
+.my-item {
+  padding: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+.my-item-title {
+  font-weight: bold;
+}
+```
 
 ---
 
 ## Apps
 
-YAML wiring activities to components.
+Apps wire activities to components. They define what shows up when AI uses a capability.
 
-**Location:** `apps/{name}.yaml`
+**Location:** `apps/{name}/app.yaml` with `icon.svg` or `icon.png`
 
-**Example:** `apps/browser.yaml`
+```
+apps/
+  browser/
+    app.yaml      # App definition
+    icon.svg      # App icon (shows on desktop)
+  settings/
+    app.yaml
+    icon.svg
+```
+
+### Basic Structure
+
+```yaml
+id: browser
+name: Browser
+icon: icon.svg
+description: Watch AI search the web and read pages
+
+# Entity types this app displays
+entities:
+  - webpage
+
+# Menu bar (when app is focused)
+menus:
+  - name: Browser
+    items:
+      - label: About Browser
+        action: open_view
+        view: about
+  - name: History
+    action: open_view    # Direct click (no dropdown)
+    view: history
+
+# Views define what to show for different activities
+views:
+  search:
+    entity: webpage
+    operation: search
+    title: Browser
+    toolbar: [...]
+    layout: [...]
+
+  read:
+    entity: webpage
+    operation: read
+    title: "{{activity.response.title}}"
+    layout: [...]
+
+default_view: search
+```
+
+### Menus
+
+Apps can define menus that appear in the menu bar when focused.
+
+**Dropdown menus** have `items`:
+
+```yaml
+menus:
+  - name: File
+    items:
+      - label: New Window
+        action: new_window
+        shortcut: "⌘N"
+      - separator: true
+      - label: Close
+        action: close
+```
+
+**Direct-action menus** have `action` (clickable, no dropdown):
+
+```yaml
+menus:
+  - name: History
+    action: open_view
+    view: history
+```
+
+**Actions:**
+- `open_view` — Opens a new window with the specified view
+- `about` — Opens the app's about view
+- `close` — Closes the focused window
+
+### Views
+
+Views define how to display activities. There are two types:
+
+**Activity-driven views** — triggered by AI activity:
+
+```yaml
+views:
+  search:
+    entity: webpage        # Which entity type
+    operation: search      # Which operation
+    title: Browser
+    layout:
+      - component: list
+        data:
+          source: activity   # Use the triggering activity's response
+        item_component: items/search-result
+        item_props:
+          title: "{{title}}"
+          url: "{{url}}"
+```
+
+**Static views** — not tied to activities (About, Settings, etc.):
+
+```yaml
+views:
+  about:
+    title: About Browser
+    layout:
+      - component: layout/stack
+        props:
+          gap: 16
+          align: center
+        children:
+          - component: text
+            props:
+              content: "Browser"
+              variant: title
+          - component: text
+            props:
+              content: "Watch AI search the web"
+              variant: body
+```
+
+### Data Sources
+
+**`source: activity`** — Uses the current activity's response:
+
+```yaml
+layout:
+  - component: list
+    data:
+      source: activity    # Response from the triggering activity
+    item_component: items/search-result
+    item_props:
+      title: "{{title}}"  # Each item in response array
+```
+
+**`source: activities`** — Queries activity history:
+
+```yaml
+layout:
+  - component: list
+    data:
+      source: activities   # Query all matching activities
+      entity: webpage      # Filter by entity
+      limit: 100
+    item_component: items/history-item
+    item_props:
+      operation: "{{operation}}"
+      title: "{{response.title}}"
+      query: "{{request.params.query}}"
+      timestamp: "{{created_at}}"
+```
+
+### Template Syntax
+
+Props support template expressions with `{{...}}`:
+
+```yaml
+# Access activity data
+title: "{{activity.response.title}}"
+query: "{{activity.request.params.query}}"
+source: "{{activity.connector}}"
+
+# In list items, access item data directly
+title: "{{title}}"
+url: "{{url}}"
+
+# Fallback with ||
+title: "{{response.title || request.params.query}}"
+```
+
+### Layout Components
+
+Compose layouts with container components:
+
+```yaml
+layout:
+  - component: layout/stack
+    props:
+      gap: 16
+      direction: vertical    # or horizontal
+      align: center          # start, center, end
+      padding: 24
+    children:
+      - component: text
+        props:
+          content: "Hello"
+      - component: text
+        props:
+          content: "World"
+```
+
+**Available layout components:**
+- `layout/stack` — Vertical or horizontal stack with gap
+- `layout/scroll-area` — Scrollable container
+- `layout/split-view` — Side-by-side panels
+
+### Toolbar
+
+Views can have a toolbar above the main layout:
+
+```yaml
+views:
+  search:
+    toolbar:
+      - component: url-bar
+        props:
+          mode: search
+          value: "{{activity.request.params.query}}"
+    layout:
+      - component: list
+        # ...
+```
+
+### Example: Complete App
+
+```yaml
+id: tasks
+name: Tasks
+icon: icon.svg
+description: View and manage tasks
+
+entities:
+  - task
+
+menus:
+  - name: Tasks
+    items:
+      - label: About Tasks
+        action: open_view
+        view: about
+  - name: History
+    action: open_view
+    view: history
+
+views:
+  list:
+    entity: task
+    operation: list
+    title: Tasks
+    layout:
+      - component: list
+        data:
+          source: activity
+        item_component: items/task-item
+        item_props:
+          title: "{{title}}"
+          completed: "{{completed}}"
+          due_date: "{{due_date}}"
+
+  about:
+    title: About Tasks
+    layout:
+      - component: layout/stack
+        props:
+          gap: 16
+          align: center
+          padding: 24
+        children:
+          - component: text
+            props:
+              content: "Tasks"
+              variant: title
+          - component: text
+            props:
+              content: "View and manage your tasks"
+              variant: body
+
+  history:
+    title: Task History
+    layout:
+      - component: layout/scroll-area
+        children:
+          - component: list
+            data:
+              source: activities
+              entity: task
+              limit: 100
+            item_component: items/history-item
+            item_props:
+              operation: "{{operation}}"
+              title: "{{response.title || request.params.title}}"
+              timestamp: "{{created_at}}"
+
+default_view: list
+```
 
 ---
 
