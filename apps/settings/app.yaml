@@ -52,6 +52,8 @@ views:
               label: Appearance
             - id: features
               label: Features
+            - id: profiles
+              label: Profiles
             - id: privacy
               label: Privacy
             - id: plugins
@@ -84,6 +86,9 @@ views:
                   - component: settings-panel
                     props:
                       category: features
+
+          profiles:
+            component: profile-editor
 
           privacy:
             component: layout/scroll-area

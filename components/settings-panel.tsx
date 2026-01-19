@@ -15,6 +15,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 // =============================================================================
+// Tauri Integration (via window.agentOS exposed by main app)
+// =============================================================================
+
+declare global {
+  interface Window {
+    agentOS?: {
+      openFolderDialog: (title?: string) => Promise<string | null>
+      openFileDialog: (options?: {
+        title?: string
+        multiple?: boolean
+        filters?: Array<{ name: string; extensions: string[] }>
+      }) => Promise<string | string[] | null>
+    }
+  }
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -151,8 +168,25 @@ function StringControl({ setting, onUpdate, updating }: SettingControlProps) {
     }
   };
   
+  // Open native folder picker (Tauri via window.agentOS)
+  const handleBrowseFolder = async () => {
+    if (window.agentOS?.openFolderDialog) {
+      const selected = await window.agentOS.openFolderDialog(`Select ${setting.label}`);
+      if (selected) {
+        onUpdate(setting.key, selected);
+      }
+    } else {
+      // Tauri not available - fall back to text input
+      setIsEditing(true);
+    }
+  };
+  
   // Path settings with preview get special treatment
   if (isPathSetting) {
+    // Show custom value if set, otherwise show the default preview
+    const displayPath = setting.value ? (setting.value as string) : setting.preview;
+    const isCustom = !!setting.value;
+    
     return (
       <div className="setting-item setting-path">
         <span className="setting-label">{setting.label}</span>
@@ -160,8 +194,8 @@ function StringControl({ setting, onUpdate, updating }: SettingControlProps) {
           <div className="setting-description">{setting.description}</div>
         )}
         <div className="setting-path-display">
-          <span className="setting-path-value">{setting.preview}</span>
-          {setting.value && (
+          <span className="setting-path-value">{displayPath}</span>
+          {isCustom && (
             <span className="setting-path-custom">(custom)</span>
           )}
         </div>
@@ -181,7 +215,7 @@ function StringControl({ setting, onUpdate, updating }: SettingControlProps) {
           </div>
         ) : (
           <div className="setting-path-actions">
-            <button onClick={() => setIsEditing(true)} disabled={updating}>
+            <button onClick={handleBrowseFolder} disabled={updating}>
               Browse...
             </button>
             {setting.value && (
@@ -253,6 +287,9 @@ function StringListControl({ setting, onUpdate, updating }: SettingControlProps)
   const [isAdding, setIsAdding] = useState(false);
   const [newValue, setNewValue] = useState('');
   
+  // Determine if this is a file list that should use native picker
+  const isFileList = setting.key.includes('profile') || setting.key.includes('file');
+  
   const handleAdd = () => {
     if (newValue.trim()) {
       onUpdate(setting.key, [...items, newValue.trim()]);
@@ -272,6 +309,32 @@ function StringListControl({ setting, onUpdate, updating }: SettingControlProps)
     } else if (e.key === 'Escape') {
       setIsAdding(false);
       setNewValue('');
+    }
+  };
+  
+  // Open native file picker (Tauri via window.agentOS) - allows multiple markdown files
+  const handleBrowseFiles = async () => {
+    if (window.agentOS?.openFileDialog) {
+      const selected = await window.agentOS.openFileDialog({
+        multiple: true,
+        title: 'Select Profile Files',
+        filters: [
+          { name: 'Markdown', extensions: ['md', 'markdown'] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+      });
+      if (selected) {
+        // selected can be string or string[] depending on multiple flag
+        const newFiles = Array.isArray(selected) ? selected : [selected];
+        // Filter out files that are already in the list
+        const uniqueNewFiles = newFiles.filter(f => !items.includes(f));
+        if (uniqueNewFiles.length > 0) {
+          onUpdate(setting.key, [...items, ...uniqueNewFiles]);
+        }
+      }
+    } else {
+      // Tauri not available - fall back to text input
+      setIsAdding(true);
     }
   };
   
@@ -316,7 +379,7 @@ function StringListControl({ setting, onUpdate, updating }: SettingControlProps)
         ) : (
           <button 
             className="setting-list-add-btn"
-            onClick={() => setIsAdding(true)}
+            onClick={isFileList ? handleBrowseFiles : () => setIsAdding(true)}
             disabled={updating}
           >
             + Add
