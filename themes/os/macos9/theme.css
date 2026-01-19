@@ -2404,14 +2404,24 @@ progress:not([value])::-webkit-progress-value {
   color: #c00;
 }
 
-/* Individual plugin item */
+/* Individual plugin item - card style */
 .plugin-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #ccc;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #f8f8f8;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: inset 1px 1px 0 #fff;
 }
 
 .plugin-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
+}
+
+/* Disabled plugin appearance */
+.plugin-item:has(input[type=checkbox]:not(:checked)) {
+  background: #f0f0f0;
+  opacity: 0.7;
 }
 
 .plugin-item-header {
@@ -2423,7 +2433,7 @@ progress:not([value])::-webkit-progress-value {
 .plugin-item-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
 }
 
@@ -2433,31 +2443,41 @@ progress:not([value])::-webkit-progress-value {
 
 .plugin-item-name {
   font-weight: bold;
-  font-size: 12px;
+  font-size: 13px;
+  color: #000;
 }
 
 .plugin-item-description {
   font-size: 11px;
-  color: #555;
+  color: #444;
   margin-top: 4px;
-  margin-left: 18px; /* Align with name (checkbox width + gap) */
+  margin-left: 20px; /* Align with name (checkbox width + gap) */
   line-height: 1.4;
 }
 
 .plugin-item-meta {
   display: flex;
-  gap: 12px;
-  margin-top: 6px;
-  margin-left: 18px;
+  gap: 8px;
+  margin-top: 8px;
+  margin-left: 20px;
   font-size: 10px;
-  color: #888;
+  color: #666;
 }
 
-.plugin-item-operations,
+.plugin-item-operations {
+  background: var(--primary-5);
+  color: var(--primary-1);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
 .plugin-item-utilities {
-  background: #eee;
-  padding: 2px 6px;
-  border-radius: 3px;
+  background: #d4edda;
+  color: #155724;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
 }
 
 /* =============================================================================
@@ -2954,4 +2974,90 @@ progress:not([value])::-webkit-progress-value {
   font-size: 12px;
   color: #333;
   padding: 4px 0;
+}
+
+/* String map display (key → value pairs) */
+.setting-map {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.setting-map-empty {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+}
+
+.setting-map-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.setting-map-key {
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 11px;
+  color: #333;
+  font-weight: 500;
+}
+
+.setting-map-arrow {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.setting-map-value {
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 11px;
+  color: #006600;
+}
+
+/* URL/File handlers display */
+.setting-handlers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.setting-handlers-empty {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+}
+
+.setting-handler-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.setting-handler-pattern {
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 11px;
+  color: #333;
+}
+
+.setting-handler-arrow {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.setting-handler-plugin {
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 11px;
+  color: #006600;
+  font-weight: 500;
 }

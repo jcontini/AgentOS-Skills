@@ -222,6 +222,7 @@ function StringMapControl({ setting, onUpdate, updating }: SettingControlProps) 
           entries.map(([key, value]) => (
             <div key={key} className="setting-map-entry">
               <span className="setting-map-key">{key}</span>
+              <span className="setting-map-arrow">→</span>
               <span className="setting-map-value">{value}</span>
             </div>
           ))
