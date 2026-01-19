@@ -8,8 +8,6 @@
  * - Loading and error states
  * - Full accessibility (ARIA roles, focus management)
  * 
- * Uses Zod for runtime prop validation — catches YAML typos and wrong types.
- * 
  * @example
  * ```yaml
  * - component: list
@@ -22,77 +20,53 @@
  * ```
  */
 
-import { useState, useRef, useEffect, Children, ReactNode, KeyboardEvent, useCallback } from 'react';
-import { z } from 'zod';
+import React, { useState, useRef, useEffect, Children, ReactNode, KeyboardEvent, useCallback } from 'react';
 
 // =============================================================================
-// Prop Schema (Zod)
+// Types
 // =============================================================================
 
-/**
- * Schema for List props — validates at runtime, applies defaults.
- * Components can export their schema for documentation and tooling.
- */
-export const ListPropsSchema = z.object({
+export interface ListProps {
   /** Original data items (used for callbacks) */
-  items: z.array(z.object({ id: z.string().optional() }).passthrough()).default([]),
+  items?: Array<{ id?: string; [key: string]: unknown }>;
   /** Pre-rendered item components */
-  children: z.any().optional(),
+  children?: ReactNode;
   /** Layout direction */
-  layout: z.enum(['vertical', 'horizontal']).default('vertical'),
+  layout?: 'vertical' | 'horizontal';
   /** Visual variant */
-  variant: z.enum(['default', 'chat', 'cards']).default('default'),
+  variant?: 'default' | 'chat' | 'cards';
   /** Show loading state */
-  loading: z.boolean().default(false),
+  loading?: boolean;
   /** Error message */
-  error: z.string().optional(),
+  error?: string;
   /** Empty state message */
-  emptyMessage: z.string().default('No items'),
+  emptyMessage?: string;
   /** Select handler */
-  onSelect: z.function().args(z.any(), z.number()).returns(z.void()).optional(),
+  onSelect?: (item: unknown, index: number) => void;
   /** Double-click handler */
-  onDoubleClick: z.function().args(z.any(), z.number()).returns(z.void()).optional(),
+  onDoubleClick?: (item: unknown, index: number) => void;
   /** Accessibility label */
-  'aria-label': z.string().default('List'),
-});
-
-/** Inferred TypeScript type from schema */
-export type ListProps = z.infer<typeof ListPropsSchema>;
+  'aria-label'?: string;
+}
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export function List(rawProps: unknown) {
-  // Validate props and apply defaults
-  const parseResult = ListPropsSchema.safeParse(rawProps);
-  
-  if (!parseResult.success) {
-    // Log validation errors for debugging
-    console.error('[List] Invalid props:', parseResult.error.format());
-    // Render error state instead of crashing
-    return (
-      <div className="list list--error" role="alert">
-        <div className="list-error">
-          <span className="list-error-icon" aria-hidden="true">⚠</span>
-          <span className="list-error-text">Invalid list configuration</span>
-        </div>
-      </div>
-    );
-  }
-
+export function List(props: ListProps) {
+  // Apply defaults
   const {
-    items,
+    items = [],
     children,
-    layout,
-    variant,
-    loading,
+    layout = 'vertical',
+    variant = 'default',
+    loading = false,
     error,
-    emptyMessage,
+    emptyMessage = 'No items',
     onSelect,
     onDoubleClick,
-    'aria-label': ariaLabel,
-  } = parseResult.data;
+    'aria-label': ariaLabel = 'List',
+  } = props;
 
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
