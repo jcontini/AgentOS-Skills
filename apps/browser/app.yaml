@@ -10,6 +10,17 @@ description: Watch AI search the web and read pages
 entities:
   - webpage
 
+# Menu bar configuration
+menus:
+  - name: Browser
+    items:
+      - label: About Browser
+        action: open_view
+        view: about
+  - name: History
+    action: open_view
+    view: history
+
 views:
   # Search results view - shows webpage.search activities
   search:
@@ -60,5 +71,56 @@ views:
         footer:
           source: "{{activity.connector}}"
           duration: "{{activity.duration_ms}}"
+
+  # About view - shows app info
+  about:
+    title: About Browser
+    layout:
+      - component: layout/stack
+        props:
+          gap: 16
+          align: center
+          padding: 24
+        children:
+          - component: text
+            props:
+              content: "🌐"
+              variant: title
+              align: center
+          - component: text
+            props:
+              content: Browser
+              variant: title
+              align: center
+          - component: text
+            props:
+              content: Watch AI search the web and read pages
+              variant: body
+              align: center
+          - component: text
+            props:
+              content: "Source: apps/browser/app.yaml"
+              variant: caption
+              align: center
+
+  # History view - shows all webpage activities
+  history:
+    title: History
+    layout:
+      - component: layout/scroll-area
+        children:
+          - component: list
+            data:
+              source: activities
+              entity: webpage
+              limit: 100
+            item_component: items/history-item
+            item_props:
+              operation: "{{operation}}"
+              title: "{{response.title}}"
+              query: "{{request.params.query}}"
+              url: "{{request.params.url}}"
+              connector: "{{connector}}"
+              timestamp: "{{created_at}}"
 
 default_view: search

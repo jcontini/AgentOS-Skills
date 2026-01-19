@@ -24,8 +24,11 @@
 import React from 'react';
 
 export interface TextProps {
-  /** Text content */
-  children: React.ReactNode;
+  /** Text content (via children) */
+  children?: React.ReactNode;
+  
+  /** Text content (via content prop, for YAML templates) */
+  content?: string;
   
   /** Semantic variant (affects default styling) */
   variant?: 'body' | 'title' | 'subtitle' | 'caption' | 'code' | 'url' | 'label';
@@ -42,6 +45,9 @@ export interface TextProps {
   /** Font weight */
   weight?: 'normal' | 'medium' | 'bold';
   
+  /** Text alignment */
+  align?: 'left' | 'center' | 'right';
+  
   /** Semantic HTML element */
   as?: 'p' | 'span' | 'h1' | 'h2' | 'h3' | 'h4' | 'label' | 'code' | 'a';
   
@@ -55,11 +61,13 @@ export interface TextProps {
 
 export function Text({
   children,
+  content,
   variant = 'body',
   overflow,
   maxLines,
   size,
   weight,
+  align,
   as: Element = 'span',
   href,
   target,
@@ -67,6 +75,9 @@ export function Text({
 }: TextProps) {
   // For links, use 'a' element
   const Tag = href ? 'a' : Element;
+  
+  // Use content prop if children is not provided
+  const textContent = children ?? content;
   
   // Build data attributes for CSS hooks
   const dataProps: Record<string, string | number | undefined> = {
@@ -77,16 +88,22 @@ export function Text({
   if (maxLines) dataProps['data-max-lines'] = maxLines;
   if (size) dataProps['data-size'] = size;
   if (weight) dataProps['data-weight'] = weight;
+  if (align) dataProps['data-align'] = align;
+  
+  // Inline style for alignment
+  const style: React.CSSProperties = {};
+  if (align) style.textAlign = align;
   
   return (
     <Tag
       className={`text ${className}`.trim()}
+      style={Object.keys(style).length > 0 ? style : undefined}
       {...dataProps}
       href={href}
       target={target}
       rel={target === '_blank' ? 'noopener noreferrer' : undefined}
     >
-      {children}
+      {textContent}
     </Tag>
   );
 }
