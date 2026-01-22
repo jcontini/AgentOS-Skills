@@ -9,7 +9,7 @@ The Files app is a Finder-like browser for AgentOS. It shows two "drives":
 - 💾 **AgentOS** (`~/.agentos/`) — Profiles, Downloads, Workshop, Archive, Data
 - 🖴 **Macintosh HD** (`~/`) — User's home folder (opt-in via Settings > Privacy)
 
-**Full spec:** See `agentos/.ROADMAP/backlog/files-workshop.md`
+**Full spec:** See `agentos/.ROADMAP/todo/files-workspace.md`
 
 ---
 
@@ -41,4 +41,4 @@ Files({
 
 - **Notes app** — Markdown editor (opens from Files)
 - **Database app** — SQLite browser (opens from Files)
-- **Workshop** — AI's scratchpad folder within AgentOS drive
+- **Workspace** — AI's scratchpad folder within AgentOS drive

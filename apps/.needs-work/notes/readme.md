@@ -8,7 +8,7 @@ The Notes app is a simple markdown editor that opens when you click `.md` files 
 
 **Comes after:** ui-capabilities (needs solid component foundation first)
 
-**Full spec:** See `agentos/.ROADMAP/backlog/files-workshop.md`
+**Full spec:** See `agentos/.ROADMAP/todo/files-workspace.md`
 
 ---
 
@@ -25,7 +25,7 @@ The Notes app is a simple markdown editor that opens when you click `.md` files 
 ## Primary Use Cases
 
 1. **Edit profiles** — `Profiles/goals.md`, `Profiles/work.md`, etc.
-2. **Workshop notes** — `Workshop/notes/session.md`
+2. **Workspace notes** — `Workspace/notes/session.md`
 3. **View generated content** — AI-created documents
 
 ---
@@ -34,7 +34,7 @@ The Notes app is a simple markdown editor that opens when you click `.md` files 
 
 - **Files app** — Opens Notes when clicking `.md` files
 - **Profiles** — User context edited via Notes
-- **Workshop** — AI scratchpad with notes
+- **Workspace** — AI scratchpad with notes
 
 ---
 
