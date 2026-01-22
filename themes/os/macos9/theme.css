@@ -236,6 +236,12 @@ legend {
   background-image: linear-gradient(180deg, var(--primary-5), var(--primary-5) 1px, transparent 1px, transparent 2px), linear-gradient(180deg, var(--primary-4), var(--primary-4) 1px, transparent 1px, transparent 2px), linear-gradient(180deg, transparent, transparent 1px, var(--primary-1) 1px, var(--primary-1) 2px);
 }
 
+/* Force classic scrollbars (not overlay) */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--primary-4) #aaa;
+}
+
 ::-webkit-scrollbar {
   background: #aaa;
   box-shadow: inset 1px 1px #777, inset 2px 2px #888, inset -1px -1px #ccc, inset -2px -2px #bbb;
@@ -285,6 +291,7 @@ legend {
   box-shadow: inset 1px 1px var(--primary-4), inset -1px -1px var(--primary-2), 1px 0 #777, 2px 0 #888;
 }
 
+/* Scrollbar arrow buttons - Mac OS 9 style (both arrows at bottom/end) */
 ::-webkit-scrollbar-button {
   width: 16px;
   height: 16px;
@@ -292,19 +299,15 @@ legend {
 }
 ::-webkit-scrollbar-button:active {
   background: #777;
-  box-shadow: inset 1px 1px #555, inset -1px -1px #999;
   box-shadow: none;
 }
 
+/* Show only the end buttons (Mac OS 9 pattern: both arrows together at bottom) */
 ::-webkit-scrollbar-button:horizontal:end:decrement,
 ::-webkit-scrollbar-button:horizontal:end:increment,
 ::-webkit-scrollbar-button:vertical:end:decrement,
 ::-webkit-scrollbar-button:vertical:end:increment {
   display: block;
-}
-
-::-webkit-scrollbar-button:active {
-  box-shadow: none;
 }
 
 ::-webkit-scrollbar-button:vertical:decrement {
@@ -794,9 +797,12 @@ progress:not([value])::-webkit-progress-value {
 
 .window,
 .dialog {
+  display: flex;
+  flex-direction: column;
   padding: 2px 4px 4px;
   border: 1px solid #555;
   background: #ddd;
+  overflow: hidden;
 }
 
 .window.active,
@@ -880,6 +886,9 @@ progress:not([value])::-webkit-progress-value {
 }
 
 .window-body {
+  flex-grow: 1;
+  min-height: 0;          /* Allow shrinking in flex context */
+  overflow: auto;
   color: #555;
   border: 1px solid #555;
   background: #eee;
@@ -2449,6 +2458,85 @@ progress:not([value])::-webkit-progress-value {
   background: #eee;
   padding: 2px 6px;
   border-radius: 3px;
+}
+
+/* =============================================================================
+   Wallpaper Picker Component
+   Grid of wallpaper thumbnails with selection
+   ============================================================================= */
+
+.wallpaper-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.wallpaper-picker--loading,
+.wallpaper-picker--error,
+.wallpaper-picker--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  min-height: 150px;
+}
+
+.wallpaper-picker-loading,
+.wallpaper-picker-error,
+.wallpaper-picker-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #666;
+}
+
+.wallpaper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.wallpaper-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.wallpaper-item--selected {
+  background: var(--selection-bg);
+  border-color: var(--primary-2);
+}
+
+.wallpaper-item-thumbnail {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid #000;
+  border-radius: 2px;
+  box-shadow: 1px 1px 0 #fff, -1px -1px 0 #888;
+}
+
+.wallpaper-item-name {
+  font-size: 11px;
+  text-align: center;
+  color: #000;
+  word-break: break-word;
+}
+
+.wallpaper-item--selected .wallpaper-item-name {
+  font-weight: bold;
+}
+
+.wallpaper-item-default {
+  font-weight: normal;
+  color: #666;
 }
 
 /* =============================================================================

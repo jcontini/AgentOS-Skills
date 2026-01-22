@@ -20,6 +20,9 @@ chrome:
   has_menubar: true
   has_taskbar: false
 
+# Default wallpaper (relative to theme folder)
+default_wallpaper: wallpapers/quantum-foam.jpg
+
 # Available skins (color variations)
 skins:
   - id: default

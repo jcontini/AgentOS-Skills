@@ -47,6 +47,8 @@ views:
       - component: tabs
         props:
           tabs:
+            - id: appearance
+              label: Appearance
             - id: features
               label: Features
             - id: privacy
@@ -59,9 +61,22 @@ views:
               label: Accounts
             - id: about
               label: About
-          default: features
+          default: appearance
           activeTab: "{{params.tab}}"
         slots:
+          appearance:
+            component: layout/scroll-area
+            children:
+              - component: layout/stack
+                props:
+                  gap: 16
+                children:
+                  - component: text
+                    props:
+                      content: Wallpaper
+                      variant: title
+                  - component: wallpaper-picker
+
           features:
             component: layout/scroll-area
             children:

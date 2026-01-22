@@ -1,72 +1,49 @@
 # Notes App
 
-Displays notes, documents, and text content.
+Markdown editor for text files in AgentOS.
 
 ## Vision
 
-The Notes app shows AI-created and retrieved notes, documents, and text content. A simple, focused interface for reading and displaying written content.
+The Notes app is a simple markdown editor that opens when you click `.md` files in the Files app. It's used for editing profiles, workshop notes, and other text content.
 
-## Capabilities
+**Comes after:** ui-capabilities (needs solid component foundation first)
 
-| Capability | Description |
-|------------|-------------|
-| `note_list` | List notes with search |
-| `note_get` | Get full note content |
-| `note_create` | Create a new note |
+**Full spec:** See `agentos/.ROADMAP/backlog/files-workshop.md`
 
 ---
 
-## Schemas
+## Features
 
-### `note_list`
-
-```typescript
-// Input
-{
-  folder_id?: string,
-  query?: string,
-  limit?: number
-}
-
-// Output
-{
-  notes: {
-    id: string               // required
-    title: string            // required
-    snippet?: string         // preview text
-    folder?: {
-      id: string
-      name: string
-    }
-    created_at: string
-    modified_at: string
-    is_pinned?: boolean
-  }[]
-}
-```
-
-### `note_get`
-
-```typescript
-// Input
-{ id: string }
-
-// Output
-{
-  id: string
-  title: string
-  content: string            // markdown or plain text
-  folder?: { id: string, name: string }
-  created_at: string
-  modified_at: string
-}
-```
+- Read/edit markdown files
+- Syntax highlighting
+- Preview mode (rendered markdown)
+- Auto-save
+- Opens from Files app when clicking `.md` files
 
 ---
 
-## Example Connectors
+## Primary Use Cases
 
-- **Apple Notes** — macOS/iOS notes
-- **Notion** — Workspace documents
-- **Obsidian** — Markdown vault
-- **Bear** — macOS notes app
+1. **Edit profiles** — `Profiles/goals.md`, `Profiles/work.md`, etc.
+2. **Workshop notes** — `Workshop/notes/session.md`
+3. **View generated content** — AI-created documents
+
+---
+
+## Related
+
+- **Files app** — Opens Notes when clicking `.md` files
+- **Profiles** — User context edited via Notes
+- **Workshop** — AI scratchpad with notes
+
+---
+
+## Future: External Note Services
+
+Later, could add connectors for external note services:
+- Apple Notes
+- Notion
+- Obsidian
+- Bear
+
+But the primary focus is local `.md` files in AgentOS.
