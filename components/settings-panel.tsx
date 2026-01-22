@@ -24,6 +24,7 @@ interface SettingMeta {
   type: 'bool' | 'string' | 'number' | 'string_list' | 'string_map' | 'url_handlers' | 'file_handlers';
   label: string;
   description?: string;
+  preview?: string;
 }
 
 interface CategoryData {
@@ -80,6 +81,27 @@ interface SettingControlProps {
 }
 
 function BoolControl({ setting, onUpdate, updating }: SettingControlProps) {
+  // Settings with previews use fieldset-style layout
+  if (setting.preview) {
+    return (
+      <fieldset className="setting-fieldset">
+        <legend>
+          <label className="setting-toggle">
+            <input
+              type="checkbox"
+              checked={setting.value as boolean}
+              disabled={updating}
+              onChange={(e) => onUpdate(setting.key, e.target.checked)}
+            />
+            <span className="setting-label">{setting.label}</span>
+          </label>
+        </legend>
+        <div className="setting-preview">{setting.preview}</div>
+      </fieldset>
+    );
+  }
+  
+  // Simple checkbox for settings without preview
   return (
     <div className="setting-item">
       <label className="setting-toggle">

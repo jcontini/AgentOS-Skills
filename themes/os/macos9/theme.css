@@ -2796,3 +2796,62 @@ progress:not([value])::-webkit-progress-value {
 .about-panel-error-message {
   color: #c00;
 }
+
+/* =============================================================================
+   Settings Panel Component
+   Schema-driven settings controls
+   ============================================================================= */
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-item {
+  padding: 4px 0;
+}
+
+.setting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.setting-toggle input[type=checkbox] {
+  cursor: pointer;
+}
+
+.setting-label {
+  font-weight: normal;
+}
+
+.setting-description {
+  font-size: 11px;
+  color: #555;
+  margin-left: 20px;
+  margin-top: 2px;
+}
+
+/* Fieldset style for settings with preview values */
+.setting-fieldset {
+  margin: 0;
+  padding: 8px 12px 10px;
+}
+
+.setting-fieldset legend {
+  padding: 0 4px;
+  background: transparent;
+}
+
+.setting-fieldset legend .setting-toggle {
+  font-weight: bold;
+}
+
+.setting-fieldset .setting-preview {
+  font-family: "Monaco", "Menlo", monospace;
+  font-size: 12px;
+  color: #333;
+  padding: 4px 0;
+}
