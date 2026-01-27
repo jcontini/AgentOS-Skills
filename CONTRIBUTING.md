@@ -4,17 +4,27 @@ Declarative YAML for entities, plugins, components, apps, and themes.
 
 **Schema reference:** `tests/plugins/plugin.schema.json` — the source of truth for plugin structure.
 
-## 🎉 Manifest Auto-Generates!
+## 🎉 Important: Manifest Auto-Generates!
 
-**You don't need to manually update `manifest.json`!** 
+**Never edit `manifest.json` manually!** 
 
 When you add or modify plugins, apps, themes, or components, a GitHub Action automatically:
-1. Scans the repository structure
+1. Scans the repository on push to `main`
 2. Reads metadata from YAML front matter
 3. Generates an updated `manifest.json`
 4. Commits it back to the repo
 
-Just add your files and the manifest updates automatically on merge to `main`.
+The manifest is what powers the AgentOS App Store. Just add your files with proper metadata and it updates automatically.
+
+### How to Test Locally
+
+```bash
+# Regenerate manifest
+node scripts/generate-manifest.js
+
+# Validate without writing
+node scripts/generate-manifest.js --check
+```
 
 ---
 

@@ -180,6 +180,47 @@ By contributing, you grant AgentOS the right to use your contributions in offici
 
 ---
 
+## App Store
+
+**The AgentOS App Store fetches items directly from this repository.** No backend servers, no infrastructure costs—GitHub IS the backend.
+
+When you add or modify plugins/apps/themes/components, a GitHub Action automatically:
+1. Scans the repository structure
+2. Reads metadata from YAML front matter
+3. Generates an updated `manifest.json`
+4. Commits it back to the repo
+
+**You never touch `manifest.json` manually!** Just add your files and the manifest updates automatically.
+
+### Installing Items
+
+From the AgentOS UI (coming soon):
+- Browse plugins, apps, themes, components
+- Click "Install" → downloads to `~/.agentos/installed/`
+- Status checking detects missing files
+- Uninstall always works (even if files deleted)
+
+From the API:
+```bash
+# Install a plugin
+curl -X POST http://localhost:3456/api/store/install \
+  -H "Content-Type: application/json" \
+  -d '{"type":"plugin","id":"todoist"}'
+
+# List installed
+curl http://localhost:3456/api/store/installed
+```
+
+### Available Items
+
+Current manifest includes:
+- **14 plugins** — todoist, linear, exa, firecrawl, youtube, reddit, and more
+- **4 apps** — browser, settings, plugins, terminal
+- **1 theme** — macos9
+- **23 components** — search-result, tabs, list, and more
+
+---
+
 ## For Developers
 
 ### Development Setup
@@ -207,5 +248,14 @@ npm test plugins/exa/tests    # Test specific plugin
 **Test structure:** Tests are organized by domain (`tests/plugins/`, `tests/entities/`). See [CONTRIBUTING.md](CONTRIBUTING.md#testing) for details.
 
 **The `.needs-work` folder:** Plugins that fail validation are automatically moved to `plugins/.needs-work/` to keep the main directory clean.
+
+### Manifest Generation
+
+The `manifest.json` auto-generates via GitHub Actions. To test locally:
+
+```bash
+node scripts/generate-manifest.js        # Regenerate
+node scripts/generate-manifest.js --check  # Validate only
+```
 
 See **[CONTRIBUTING.md](CONTRIBUTING.md)** for plugin development, testing, and contribution terms.
