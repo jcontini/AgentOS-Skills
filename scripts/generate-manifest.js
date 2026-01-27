@@ -1,0 +1,297 @@
+#!/usr/bin/env node
+/**
+ * Generate manifest.json from repository contents
+ * 
+ * Usage:
+ *   node scripts/generate-manifest.js           # Generate manifest.json
+ *   node scripts/generate-manifest.js --check   # Validate without writing
+ */
+
+import { readdirSync, readFileSync, writeFileSync, statSync } from 'fs';
+import { join, basename } from 'path';
+import yaml from 'js-yaml';
+
+const REPO_ROOT = new URL('..', import.meta.url).pathname;
+const MANIFEST_PATH = join(REPO_ROOT, 'manifest.json');
+
+/**
+ * Walk a directory recursively, looking for items
+ */
+function walkDirectory(dir, depth = 0, maxDepth = 3) {
+  if (depth > maxDepth) return [];
+  
+  const items = [];
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      
+      const fullPath = join(dir, entry.name);
+      
+      if (entry.isDirectory()) {
+        items.push(...walkDirectory(fullPath, depth + 1, maxDepth));
+      }
+    }
+  } catch (err) {
+    console.warn(`Skipping directory ${dir}: ${err.message}`);
+  }
+  
+  return items;
+}
+
+/**
+ * Extract metadata from a plugin directory
+ */
+function extractPluginMetadata(pluginDir) {
+  const readmePath = join(pluginDir, 'readme.md');
+  
+  if (!readFileSync(readmePath, 'utf-8')) return null;
+  
+  const content = readFileSync(readmePath, 'utf-8');
+  const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  
+  if (!frontMatterMatch) return null;
+  
+  const metadata = yaml.load(frontMatterMatch[1]);
+  
+  // Get relative path from plugins/ directory (e.g., "tasks/todoist")
+  const pluginsRoot = join(REPO_ROOT, 'plugins');
+  const relativePath = pluginDir.replace(pluginsRoot + '/', '');
+  
+  return {
+    id: metadata.id || basename(pluginDir),
+    name: metadata.name || basename(pluginDir),
+    description: metadata.description || '',
+    icon: `plugins/${relativePath}/icon.svg`,
+    tags: metadata.tags || [],
+    version: metadata.version || '1.0.0',
+    author: metadata.author || 'community',
+  };
+}
+
+/**
+ * Extract metadata from an app directory
+ */
+function extractAppMetadata(appDir) {
+  const yamlPath = join(appDir, 'app.yaml');
+  
+  try {
+    const content = readFileSync(yamlPath, 'utf-8');
+    const metadata = yaml.load(content);
+    
+    return {
+      id: metadata.id || basename(appDir),
+      name: metadata.name || basename(appDir),
+      description: metadata.description || '',
+      icon: `apps/${basename(appDir)}/icon.svg`,
+      version: metadata.version || '1.0.0',
+      author: metadata.author || 'agentos',
+    };
+  } catch (err) {
+    console.warn(`Skipping app ${basename(appDir)}: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Extract metadata from a theme directory
+ */
+function extractThemeMetadata(themeDir, themeType) {
+  const yamlPath = join(themeDir, 'theme.yaml');
+  
+  try {
+    const content = readFileSync(yamlPath, 'utf-8');
+    const metadata = yaml.load(content);
+    
+    return {
+      id: metadata.id || basename(themeDir),
+      name: metadata.name || basename(themeDir),
+      type: themeType,
+      description: metadata.description || '',
+      preview: `themes/${themeType}/${basename(themeDir)}/preview.png`,
+      version: metadata.version || '1.0.0',
+      author: metadata.author || 'agentos',
+    };
+  } catch (err) {
+    console.warn(`Skipping theme ${basename(themeDir)}: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Extract metadata from a component file
+ */
+function extractComponentMetadata(componentPath) {
+  const id = basename(componentPath, '.tsx');
+  
+  try {
+    const content = readFileSync(componentPath, 'utf-8');
+    
+    // Look for JSDoc-style metadata comment at the top
+    const metaMatch = content.match(/\/\*\*\s*\n([\s\S]*?)\n\s*\*\//);
+    
+    let name = id;
+    let description = '';
+    
+    if (metaMatch) {
+      const metaContent = metaMatch[1];
+      const nameMatch = metaContent.match(/\*\s*@name\s+(.+)/);
+      const descMatch = metaContent.match(/\*\s*@description\s+(.+)/);
+      
+      if (nameMatch) name = nameMatch[1].trim();
+      if (descMatch) description = descMatch[1].trim();
+    }
+    
+    return {
+      id,
+      name,
+      description,
+      version: '1.0.0',
+      author: 'agentos',
+    };
+  } catch (err) {
+    console.warn(`Skipping component ${id}: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Generate the manifest from repository contents
+ */
+function generateManifest() {
+  const manifest = {
+    version: '1.0.0',
+    updated_at: new Date().toISOString(),
+    plugins: [],
+    apps: [],
+    themes: [],
+    components: [],
+  };
+  
+  // Scan plugins (nested in category folders)
+  const pluginsDir = join(REPO_ROOT, 'plugins');
+  try {
+    const categoryDirs = readdirSync(pluginsDir, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map(entry => join(pluginsDir, entry.name));
+    
+    for (const categoryDir of categoryDirs) {
+      try {
+        const pluginDirs = readdirSync(categoryDir, { withFileTypes: true })
+          .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+          .map(entry => join(categoryDir, entry.name));
+        
+        for (const pluginDir of pluginDirs) {
+          const metadata = extractPluginMetadata(pluginDir);
+          if (metadata) manifest.plugins.push(metadata);
+        }
+      } catch (err) {
+        console.warn(`Skipping category ${basename(categoryDir)}: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    console.warn(`No plugins directory: ${err.message}`);
+  }
+  
+  // Scan apps
+  const appsDir = join(REPO_ROOT, 'apps');
+  try {
+    const appDirs = readdirSync(appsDir, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map(entry => join(appsDir, entry.name));
+    
+    for (const appDir of appDirs) {
+      const metadata = extractAppMetadata(appDir);
+      if (metadata) manifest.apps.push(metadata);
+    }
+  } catch (err) {
+    console.warn(`No apps directory: ${err.message}`);
+  }
+  
+  // Scan themes (OS and app themes)
+  const themesDir = join(REPO_ROOT, 'themes');
+  try {
+    for (const themeType of ['os', 'app']) {
+      const typeDir = join(themesDir, themeType);
+      try {
+        const themeDirs = readdirSync(typeDir, { withFileTypes: true })
+          .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+          .map(entry => join(typeDir, entry.name));
+        
+        for (const themeDir of themeDirs) {
+          const metadata = extractThemeMetadata(themeDir, themeType);
+          if (metadata) manifest.themes.push(metadata);
+        }
+      } catch (err) {
+        console.warn(`No ${themeType} themes: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    console.warn(`No themes directory: ${err.message}`);
+  }
+  
+  // Scan components
+  const componentsDir = join(REPO_ROOT, 'components');
+  try {
+    const componentFiles = readdirSync(componentsDir)
+      .filter(file => file.endsWith('.tsx') && !file.startsWith('.'))
+      .map(file => join(componentsDir, file));
+    
+    for (const componentPath of componentFiles) {
+      const metadata = extractComponentMetadata(componentPath);
+      if (metadata) manifest.components.push(metadata);
+    }
+  } catch (err) {
+    console.warn(`No components directory: ${err.message}`);
+  }
+  
+  // Sort each category by id
+  manifest.plugins.sort((a, b) => a.id.localeCompare(b.id));
+  manifest.apps.sort((a, b) => a.id.localeCompare(b.id));
+  manifest.themes.sort((a, b) => a.id.localeCompare(b.id));
+  manifest.components.sort((a, b) => a.id.localeCompare(b.id));
+  
+  return manifest;
+}
+
+/**
+ * Main
+ */
+function main() {
+  const checkOnly = process.argv.includes('--check');
+  
+  console.log('Generating manifest from repository contents...');
+  const manifest = generateManifest();
+  
+  console.log(`Found:`);
+  console.log(`  - ${manifest.plugins.length} plugins`);
+  console.log(`  - ${manifest.apps.length} apps`);
+  console.log(`  - ${manifest.themes.length} themes`);
+  console.log(`  - ${manifest.components.length} components`);
+  
+  const manifestJson = JSON.stringify(manifest, null, 2);
+  
+  if (checkOnly) {
+    // Check if current manifest matches
+    try {
+      const currentManifest = readFileSync(MANIFEST_PATH, 'utf-8');
+      if (currentManifest.trim() === manifestJson.trim()) {
+        console.log('✓ Manifest is up to date');
+        process.exit(0);
+      } else {
+        console.error('✗ Manifest is out of date. Run: node scripts/generate-manifest.js');
+        process.exit(1);
+      }
+    } catch (err) {
+      console.error('✗ manifest.json not found or unreadable');
+      process.exit(1);
+    }
+  } else {
+    // Write the manifest
+    writeFileSync(MANIFEST_PATH, manifestJson + '\n');
+    console.log(`✓ Wrote manifest to ${MANIFEST_PATH}`);
+  }
+}
+
+main();

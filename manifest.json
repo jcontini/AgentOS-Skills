@@ -1,40 +1,218 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-01-27T00:00:00Z",
+  "updated_at": "2026-01-27T02:46:41.351Z",
   "plugins": [
     {
-      "id": "todoist",
-      "name": "Todoist",
-      "description": "Personal task management with projects, priorities, and natural language parsing",
-      "icon": "plugins/todoist/icon.svg",
-      "tags": ["tasks", "productivity"],
+      "id": "apple-calendar",
+      "name": "Apple Calendar",
+      "description": "Access macOS Calendar via native EventKit APIs",
+      "icon": "plugins/calendar/apple-calendar/icon.svg",
+      "tags": [
+        "calendar",
+        "events",
+        "scheduling"
+      ],
       "version": "1.0.0",
-      "author": "agentos"
+      "author": "community"
+    },
+    {
+      "id": "brave",
+      "name": "Brave Search",
+      "description": "Privacy-focused web search with independent index",
+      "icon": "plugins/search/brave/icon.svg",
+      "tags": [
+        "web",
+        "search"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "curl",
+      "name": "Curl",
+      "description": "Simple URL fetching using curl (no API key needed)",
+      "icon": "plugins/search/curl/icon.svg",
+      "tags": [
+        "web",
+        "fetch",
+        "local"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "description": "AI-powered code editor conversation history",
+      "icon": "plugins/development/cursor/icon.svg",
+      "tags": [
+        "messages",
+        "chat",
+        "conversations",
+        "ai"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "exa",
+      "name": "Exa",
+      "description": "Semantic web search and content extraction",
+      "icon": "plugins/search/exa/icon.svg",
+      "tags": [
+        "web",
+        "search",
+        "scraping"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "firecrawl",
+      "name": "Firecrawl",
+      "description": "Web scraping with browser rendering for JS-heavy sites",
+      "icon": "plugins/search/firecrawl/icon.svg",
+      "tags": [
+        "web",
+        "search",
+        "scraping"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "imessage",
+      "name": "iMessage",
+      "description": "Read iMessages and SMS from macOS Messages app",
+      "icon": "plugins/messages/imessage/icon.svg",
+      "tags": [
+        "messages",
+        "chat",
+        "sms",
+        "imessage"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "instagram",
+      "name": "Instagram",
+      "description": "Read and send Instagram direct messages via private API",
+      "icon": "plugins/social/instagram/icon.svg",
+      "tags": [
+        "messages",
+        "chat",
+        "conversations"
+      ],
+      "version": "1.0.0",
+      "author": "community"
     },
     {
       "id": "linear",
       "name": "Linear",
       "description": "Project management for engineering teams",
-      "icon": "plugins/linear/icon.svg",
-      "tags": ["tasks", "project-management"],
+      "icon": "plugins/tasks/linear/icon.svg",
+      "tags": [
+        "tasks",
+        "issues",
+        "projects"
+      ],
       "version": "1.0.0",
-      "author": "agentos"
+      "author": "community"
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "description": "Connect to MySQL and MariaDB databases",
+      "icon": "plugins/databases/mysql/icon.svg",
+      "tags": [
+        "database",
+        "sql"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "reddit",
+      "name": "Reddit",
+      "description": "Read public Reddit communities, posts, and comments",
+      "icon": "plugins/social/reddit/icon.svg",
+      "tags": [
+        "social",
+        "reddit",
+        "communities"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite",
+      "description": "Connect to SQLite database files",
+      "icon": "plugins/databases/sqlite/icon.svg",
+      "tags": [
+        "database",
+        "sql"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "todoist",
+      "name": "Todoist",
+      "description": "Personal task management",
+      "icon": "plugins/tasks/todoist/icon.svg",
+      "tags": [
+        "tasks",
+        "todos",
+        "reminders"
+      ],
+      "version": "1.0.0",
+      "author": "community"
+    },
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "description": "Get video metadata and transcripts using yt-dlp",
+      "icon": "plugins/social/youtube/icon.svg",
+      "tags": [
+        "media",
+        "video"
+      ],
+      "version": "1.0.0",
+      "author": "community"
     }
   ],
   "apps": [
     {
       "id": "browser",
       "name": "Browser",
-      "description": "Browse the web and view search results",
+      "description": "Watch AI search the web and read pages",
       "icon": "apps/browser/icon.svg",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "plugins",
+      "name": "Plugins",
+      "description": "Browse installed plugins",
+      "icon": "apps/plugins/icon.svg",
       "version": "1.0.0",
       "author": "agentos"
     },
     {
       "id": "settings",
       "name": "Settings",
-      "description": "Configure AgentOS preferences and plugins",
+      "description": "Configure AgentOS preferences, plugins, and credentials",
       "icon": "apps/settings/icon.svg",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "terminal",
+      "name": "Terminal",
+      "description": "View all AI activity as terminal output",
+      "icon": "apps/terminal/icon.svg",
       "version": "1.0.0",
       "author": "agentos"
     }
@@ -44,7 +222,7 @@
       "id": "macos9",
       "name": "Mac OS 9",
       "type": "os",
-      "description": "Classic Mac OS 9 platinum look and feel",
+      "description": "Classic Mac OS 9 appearance with platinum styling",
       "preview": "themes/os/macos9/preview.png",
       "version": "1.0.0",
       "author": "agentos"
@@ -52,10 +230,163 @@
   ],
   "components": [
     {
-      "id": "search-result",
-      "name": "Search Result",
-      "description": "Display a search result item with title, snippet, and URL",
-      "preview": "components/search-result/preview.png",
+      "id": "about-panel",
+      "name": "about-panel",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "activity-footer",
+      "name": "activity-footer",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "credential-list",
+      "name": "credential-list",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "grid",
+      "name": "grid",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "list",
+      "name": "list",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "markdown",
+      "name": "markdown",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "media-header",
+      "name": "media-header",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "plugin-browser",
+      "name": "plugin-browser",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "plugin-detail",
+      "name": "plugin-detail",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "plugin-grid",
+      "name": "plugin-grid",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "plugin-list",
+      "name": "plugin-list",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "plugin-preferences",
+      "name": "plugin-preferences",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "profile-editor",
+      "name": "profile-editor",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "settings-panel",
+      "name": "settings-panel",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "tabs",
+      "name": "tabs",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "terminal-line",
+      "name": "terminal-line",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "terminal-output",
+      "name": "terminal-output",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "text",
+      "name": "text",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "text-input",
+      "name": "text-input",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "toggle",
+      "name": "toggle",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "url-bar",
+      "name": "url-bar",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "wallpaper-picker",
+      "name": "wallpaper-picker",
+      "description": "",
+      "version": "1.0.0",
+      "author": "agentos"
+    },
+    {
+      "id": "web-defaults",
+      "name": "web-defaults",
+      "description": "",
       "version": "1.0.0",
       "author": "agentos"
     }
