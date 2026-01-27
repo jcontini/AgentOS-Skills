@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-01-27T15:08:28.113Z",
+  "updated_at": "2026-01-27T16:05:25.035Z",
   "plugins": [
     {
       "id": "apple-calendar",
@@ -8,12 +8,11 @@
       "description": "Access macOS Calendar via native EventKit APIs",
       "icon": "plugins/apple-calendar/icon.svg",
       "tags": [
-        "calendar",
-        "events",
-        "scheduling"
+        "calendar"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.619Z"
     },
     {
       "id": "brave",
@@ -25,7 +24,8 @@
         "search"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.619Z"
     },
     {
       "id": "curl",
@@ -33,12 +33,11 @@
       "description": "Simple URL fetching using curl (no API key needed)",
       "icon": "plugins/curl/icon.svg",
       "tags": [
-        "web",
-        "fetch",
-        "local"
+        "web"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.619Z"
     },
     {
       "id": "cursor",
@@ -46,13 +45,11 @@
       "description": "AI-powered code editor conversation history",
       "icon": "plugins/cursor/icon.svg",
       "tags": [
-        "messages",
-        "chat",
-        "conversations",
-        "ai"
+        "AI"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.620Z"
     },
     {
       "id": "demo",
@@ -60,11 +57,11 @@
       "description": "Demos using free public APIs - no API keys needed!",
       "icon": "plugins/demo/icon.svg",
       "tags": [
-        "demo",
-        "examples"
+        "utilities"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.620Z"
     },
     {
       "id": "exa",
@@ -73,11 +70,11 @@
       "icon": "plugins/exa/icon.svg",
       "tags": [
         "web",
-        "search",
-        "scraping"
+        "search"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.620Z"
     },
     {
       "id": "firecrawl",
@@ -86,11 +83,11 @@
       "icon": "plugins/firecrawl/icon.svg",
       "tags": [
         "web",
-        "search",
-        "scraping"
+        "search"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.620Z"
     },
     {
       "id": "hardcover",
@@ -98,12 +95,11 @@
       "description": "Modern alternative to Goodreads for tracking your reading",
       "icon": "plugins/hardcover/icon.svg",
       "tags": [
-        "books",
-        "reading",
-        "library"
+        "books"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.620Z"
     },
     {
       "id": "imessage",
@@ -112,12 +108,11 @@
       "icon": "plugins/imessage/icon.svg",
       "tags": [
         "messages",
-        "chat",
-        "sms",
-        "imessage"
+        "chat"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.620Z"
     },
     {
       "id": "instagram",
@@ -127,10 +122,11 @@
       "tags": [
         "messages",
         "chat",
-        "conversations"
+        "social"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.621Z"
     },
     {
       "id": "linear",
@@ -138,12 +134,11 @@
       "description": "Project management for engineering teams",
       "icon": "plugins/linear/icon.svg",
       "tags": [
-        "tasks",
-        "issues",
-        "projects"
+        "tasks"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.621Z"
     },
     {
       "id": "logo-dev",
@@ -152,12 +147,11 @@
       "icon": "plugins/logo-dev/icon.svg",
       "tags": [
         "media",
-        "images",
-        "logos",
         "brands"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.621Z"
     },
     {
       "id": "mysql",
@@ -165,11 +159,11 @@
       "description": "Connect to MySQL and MariaDB databases",
       "icon": "plugins/mysql/icon.svg",
       "tags": [
-        "database",
-        "sql"
+        "database"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.621Z"
     },
     {
       "id": "reddit",
@@ -178,11 +172,11 @@
       "icon": "plugins/reddit/icon.svg",
       "tags": [
         "social",
-        "reddit",
         "communities"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.621Z"
     },
     {
       "id": "sqlite",
@@ -190,11 +184,11 @@
       "description": "Connect to SQLite database files",
       "icon": "plugins/sqlite/icon.svg",
       "tags": [
-        "database",
-        "sql"
+        "database"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.621Z"
     },
     {
       "id": "todoist",
@@ -202,12 +196,11 @@
       "description": "Personal task management",
       "icon": "plugins/todoist/icon.svg",
       "tags": [
-        "tasks",
-        "todos",
-        "reminders"
+        "tasks"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.622Z"
     },
     {
       "id": "youtube",
@@ -219,7 +212,8 @@
         "video"
       ],
       "version": "1.0.0",
-      "author": "community"
+      "author": "community",
+      "updated_at": "2026-01-27T16:05:12.622Z"
     }
   ],
   "apps": [
@@ -229,7 +223,8 @@
       "description": "Watch AI search the web and read pages",
       "icon": "apps/browser/icon.svg",
       "version": "1.0.0",
-      "author": "agentos"
+      "author": "agentos",
+      "updated_at": "2026-01-27T16:05:12.613Z"
     },
     {
       "id": "plugins",
@@ -237,7 +232,8 @@
       "description": "Browse installed plugins",
       "icon": "apps/plugins/icon.svg",
       "version": "1.0.0",
-      "author": "agentos"
+      "author": "agentos",
+      "updated_at": "2026-01-27T16:05:12.613Z"
     },
     {
       "id": "terminal",
@@ -245,7 +241,8 @@
       "description": "View all AI activity as terminal output",
       "icon": "apps/terminal/icon.svg",
       "version": "1.0.0",
-      "author": "agentos"
+      "author": "agentos",
+      "updated_at": "2026-01-27T16:05:12.613Z"
     }
   ],
   "themes": [
@@ -256,7 +253,8 @@
       "description": "Classic Mac OS 9 appearance with platinum styling",
       "preview": "themes/os/macos9/preview.png",
       "version": "1.0.0",
-      "author": "agentos"
+      "author": "agentos",
+      "updated_at": "2026-01-27T16:05:12.624Z"
     }
   ],
   "components": [
