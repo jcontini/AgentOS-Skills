@@ -3,7 +3,6 @@ id: playwright
 name: Playwright
 description: Browser automation with sessions, recording, and playback
 icon: icon.svg
-color: "#2EAD33"
 
 website: https://playwright.dev
 

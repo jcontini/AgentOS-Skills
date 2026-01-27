@@ -3,7 +3,6 @@ id: gandi
 name: Gandi
 description: Domain registration, DNS management, and SSL certificates
 icon: icon.svg
-color: "#000000"
 tags: [domain, dns, ssl, hosting]
 
 website: https://www.gandi.net

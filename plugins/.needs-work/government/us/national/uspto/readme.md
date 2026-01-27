@@ -105,7 +105,6 @@ id: ip
 name: IP
 description: Search patents and trademarks
 icon: icon.svg
-color: "#1E40AF"
 
 schema:
   trademark:

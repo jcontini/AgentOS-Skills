@@ -3,7 +3,6 @@ id: domainr
 name: Domainr
 description: Domain name search and availability checking
 icon: icon.svg
-color: "#00A9E0"
 tags: [domain, dns, search]
 
 website: https://domainr.com

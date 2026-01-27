@@ -3,7 +3,6 @@ id: github
 name: GitHub
 description: GitHub CLI wrapper for repos, issues, PRs, and more
 icon: icon.svg
-color: "#24292f"
 tags: [code, git, github, developer]
 
 website: https://cli.github.com

@@ -7,8 +7,38 @@
  *   node scripts/generate-manifest.js --check   # Validate without writing
  */
 
-import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from 'fs';
+import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, lstatSync } from 'fs';
 import { join, basename } from 'path';
+
+/**
+ * Get the most recent modification time of any file in a directory (recursive)
+ */
+function getLatestModTime(dir) {
+  let latestTime = 0;
+  
+  function scanDir(currentDir) {
+    try {
+      const entries = readdirSync(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue;
+        
+        const fullPath = join(currentDir, entry.name);
+        const stats = lstatSync(fullPath);
+        
+        if (stats.isFile()) {
+          latestTime = Math.max(latestTime, stats.mtimeMs);
+        } else if (stats.isDirectory()) {
+          scanDir(fullPath);
+        }
+      }
+    } catch (err) {
+      // Skip directories we can't read
+    }
+  }
+  
+  scanDir(dir);
+  return latestTime > 0 ? new Date(latestTime).toISOString() : null;
+}
 import yaml from 'js-yaml';
 
 const REPO_ROOT = new URL('..', import.meta.url).pathname;
@@ -65,6 +95,9 @@ function extractPluginMetadata(pluginDir) {
   const pluginsRoot = join(REPO_ROOT, 'plugins');
   const relativePath = pluginDir.replace(pluginsRoot + '/', '');
   
+  // Get the most recent file modification time in this plugin's folder
+  const updatedAt = getLatestModTime(pluginDir);
+  
   return {
     id: metadata.id || basename(pluginDir),
     name: metadata.name || basename(pluginDir),
@@ -73,6 +106,7 @@ function extractPluginMetadata(pluginDir) {
     tags: metadata.tags || [],
     version: metadata.version || '1.0.0',
     author: metadata.author || 'community',
+    updated_at: updatedAt,
   };
 }
 
@@ -86,6 +120,8 @@ function extractAppMetadata(appDir) {
     const content = readFileSync(yamlPath, 'utf-8');
     const metadata = yaml.load(content);
     
+    const updatedAt = getLatestModTime(appDir);
+    
     return {
       id: metadata.id || basename(appDir),
       name: metadata.name || basename(appDir),
@@ -93,6 +129,7 @@ function extractAppMetadata(appDir) {
       icon: `apps/${basename(appDir)}/icon.svg`,
       version: metadata.version || '1.0.0',
       author: metadata.author || 'agentos',
+      updated_at: updatedAt,
     };
   } catch (err) {
     console.warn(`Skipping app ${basename(appDir)}: ${err.message}`);
@@ -110,6 +147,8 @@ function extractThemeMetadata(themeDir, themeType) {
     const content = readFileSync(yamlPath, 'utf-8');
     const metadata = yaml.load(content);
     
+    const updatedAt = getLatestModTime(themeDir);
+    
     return {
       id: metadata.id || basename(themeDir),
       name: metadata.name || basename(themeDir),
@@ -118,6 +157,7 @@ function extractThemeMetadata(themeDir, themeType) {
       preview: `themes/${themeType}/${basename(themeDir)}/preview.png`,
       version: metadata.version || '1.0.0',
       author: metadata.author || 'agentos',
+      updated_at: updatedAt,
     };
   } catch (err) {
     console.warn(`Skipping theme ${basename(themeDir)}: ${err.message}`);

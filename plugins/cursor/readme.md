@@ -3,8 +3,7 @@ id: cursor
 name: Cursor
 description: AI-powered code editor conversation history
 icon: icon.png
-color: "#00D1FF"
-tags: [messages, chat, conversations, ai]
+tags: [AI]
 
 website: https://cursor.sh
 # No auth block = no credentials needed (local database)

@@ -3,8 +3,7 @@ id: mysql
 name: MySQL
 description: Connect to MySQL and MariaDB databases
 icon: icon.png
-color: "#4479A1"
-tags: [database, sql]
+tags: [database]
 
 website: https://www.mysql.com
 docs_url: https://dev.mysql.com/doc/

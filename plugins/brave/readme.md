@@ -3,7 +3,6 @@ id: brave
 name: Brave Search
 description: Privacy-focused web search with independent index
 icon: icon.svg
-color: "#FB542B"
 tags: [web, search]
 display: browser
 

@@ -3,8 +3,7 @@ id: logo-dev
 name: Logo.dev
 description: Company logos via CDN - lookup by domain, ticker, or name
 icon: icon.svg
-color: "#000000"
-tags: [media, images, logos, brands]
+tags: [media, brands]
 display: gallery
 
 website: https://www.logo.dev

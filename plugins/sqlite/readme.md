@@ -3,8 +3,7 @@ id: sqlite
 name: SQLite
 description: Connect to SQLite database files
 icon: icon.png
-color: "#003B57"
-tags: [database, sql]
+tags: [database]
 
 website: https://www.sqlite.org
 docs_url: https://www.sqlite.org/docs.html

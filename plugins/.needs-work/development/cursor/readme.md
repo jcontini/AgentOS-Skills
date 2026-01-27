@@ -3,7 +3,6 @@ id: cursor
 name: Cursor
 description: Search and access Cursor AI conversation history
 icon: icon.svg
-color: "#00D1FF"
 
 website: https://cursor.com
 

@@ -4,7 +4,7 @@ name: Hardcover
 description: Modern alternative to Goodreads for tracking your reading
 icon: icon.png
 website: https://hardcover.app
-tags: [books, reading, library]
+tags: [books]
 
 auth:
   type: api_key

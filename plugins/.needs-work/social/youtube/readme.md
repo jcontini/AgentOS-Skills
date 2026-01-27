@@ -3,7 +3,6 @@ id: youtube
 name: YouTube
 description: Get video transcripts, metadata, and downloads using yt-dlp
 icon: icon.svg
-color: "#FF0000"
 website: https://youtube.com
 tags: [media, video, youtube]
 

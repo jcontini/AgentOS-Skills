@@ -3,7 +3,7 @@ id: demo
 name: Demo
 description: Demos using free public APIs - no API keys needed!
 icon: icon.svg
-tags: [demo, examples]
+tags: [utilities]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # UTILITIES (no adapters/operations — demo is utility-only)
