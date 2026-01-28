@@ -23,7 +23,8 @@ instructions: |
   - Renders JavaScript - use for React, Vue, Angular, SPAs
   - Good for Notion pages, dynamic content
   - Slower than Exa but handles modern web apps
-  - Cost: ~$0.009/page for scrape, ~$0.01/search
+  - Cost: ~$0.009/page for scrape
+  - For search, use Exa instead (Firecrawl search requires semantic queries)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ADAPTERS
@@ -43,24 +44,8 @@ adapters:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 operations:
-  webpage.search:
-    description: Search the web with browser rendering
-    returns: webpage[]
-    params:
-      query: { type: string, required: true, description: "Search query" }
-      limit: { type: integer, default: 5, description: "Number of results" }
-    rest:
-      method: POST
-      url: https://api.firecrawl.dev/v1/search
-      body:
-        query: "{{params.query}}"
-        limit: "{{params.limit | default:5}}"
-      response:
-        root: "/data"
-        mapping:
-          url: ".url"
-          title: ".title"
-          snippet: ".description"
+  # Note: Search removed - Firecrawl's semantic search requires full-sentence queries
+  # which is confusing. Use Exa for search, Firecrawl for JS-heavy scraping.
 
   webpage.read:
     description: Scrape a URL with browser rendering (handles JS-heavy sites)
