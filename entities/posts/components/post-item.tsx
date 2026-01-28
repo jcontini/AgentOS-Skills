@@ -2,7 +2,7 @@
  * Post Item Component
  * 
  * Renders a single post in a list view (Reddit, HN, Twitter, etc.).
- * Shows title, author, community, score, and comment count.
+ * Uses primitives for theme-agnostic styling.
  */
 
 import React from 'react';
@@ -59,40 +59,79 @@ export function PostItem({
   // Use title if available, otherwise truncate content
   const displayTitle = title || (content ? content.slice(0, 100) + (content.length > 100 ? '...' : '') : 'Untitled');
   
+  // Build meta items array for clean separator handling
+  const metaItems: string[] = [];
+  if (community) metaItems.push(`r/${community}`);
+  if (author) metaItems.push(`by ${author}`);
+  if (publishedAt) metaItems.push(formatRelativeTime(publishedAt));
+  if (commentCount !== undefined) metaItems.push(`${commentCount} comments`);
+  
   return (
-    <div className="post-item">
-      {/* Score on left */}
+    <div
+      style={{ 
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: '12px',
+        padding: '6px 0', 
+        borderBottom: '1px solid var(--border-color, #ccc)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Score on left - with arrow to indicate votes */}
       {score !== undefined && (
-        <div className="post-item__score">
-          {score}
+        <div
+          style={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minWidth: '36px',
+            paddingTop: '2px',
+            color: 'var(--text-secondary, #666)',
+            fontSize: '12px',
+          }}
+        >
+          <span style={{ fontSize: '10px', lineHeight: 1 }}>▲</span>
+          <span style={{ fontWeight: 'bold' }}>{score}</span>
         </div>
       )}
       
-      <div className="post-item__content">
+      {/* Content */}
+      <div
+        style={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px',
+          flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+        }}
+      >
         {/* Title/link */}
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="post-item__title"
+          style={{ 
+            textDecoration: 'none',
+            color: 'var(--link-color, #0066cc)',
+            fontWeight: 'bold',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
         >
           {displayTitle}
         </a>
         
         {/* Meta line: community, author, time, comments */}
-        <div className="post-item__meta">
-          {community && (
-            <span className="post-item__community">{community}</span>
-          )}
-          {author && (
-            <span className="post-item__author">by {author}</span>
-          )}
-          {publishedAt && (
-            <span className="post-item__time">{formatRelativeTime(publishedAt)}</span>
-          )}
-          {commentCount !== undefined && (
-            <span className="post-item__comments">{commentCount} comments</span>
-          )}
+        <div
+          style={{ 
+            color: 'var(--text-secondary, #666)',
+            fontSize: '11px',
+          }}
+        >
+          {metaItems.join(' · ')}
         </div>
       </div>
     </div>

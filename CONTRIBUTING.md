@@ -4,6 +4,37 @@ Declarative YAML for entities, plugins, components, apps, and themes.
 
 **Schema reference:** `tests/plugins/plugin.schema.json` — the source of truth for plugin structure.
 
+---
+
+## Development Workflow
+
+**Recommended:** Develop in `~/.agentos/installed/`, then copy here when ready.
+
+```bash
+# 1. Edit directly in installed folder (fast iteration)
+vim ~/.agentos/installed/plugins/reddit/readme.md
+
+# 2. Restart server and test
+cd ~/dev/agentos && ./restart.sh
+curl -X POST http://localhost:3456/api/plugins/reddit/post.list \
+  -d '{"subreddit": "programming", "limit": 1}'
+
+# 3. When working, copy to community repo
+cp -r ~/.agentos/installed/plugins/reddit ~/dev/agentos-community/plugins/
+
+# 4. Validate and commit
+cd ~/dev/agentos-community
+npm run validate
+git add -A && git commit -m "Update Reddit plugin"
+```
+
+**Why this workflow:**
+- Changes in `~/.agentos/installed/` take effect on server restart
+- No copy step between edits — fast feedback
+- Community repo stays clean — only tested code gets committed
+
+---
+
 ## 🎉 Important: Manifest Auto-Generates!
 
 **Never edit `manifest.json` manually!** 
@@ -245,36 +276,42 @@ handles:
 
 ### External Sources
 
-Plugins can declare external resources they need. The server uses these to build Content Security Policy (CSP) headers dynamically:
+Plugins can declare external resources they need:
 
 ```yaml
 sources:
   images:
-    - "https://i.ytimg.com/*"      # Video thumbnails
-    - "https://yt3.ggpht.com/*"    # Channel avatars
+    - "i.ytimg.com"               # Video thumbnails
+    - "yt3.ggpht.com"             # Channel avatars
   api:
-    - "https://api.example.com/*"  # API endpoints
-  scripts:
-    - "https://cdn.example.com/*"  # External scripts (use sparingly)
-  styles:
-    - "https://fonts.googleapis.com/*"
-  fonts:
-    - "https://fonts.gstatic.com/*"
+    - "https://api.example.com/*" # API endpoints
 ```
 
-| Category | CSP Directive | Use for |
-|----------|---------------|---------|
-| `images` | `img-src` | Thumbnails, avatars, covers |
-| `api` | `connect-src` | REST/GraphQL endpoints |
-| `scripts` | `script-src` | External JavaScript |
-| `styles` | `style-src` | External CSS |
-| `fonts` | `font-src` | Web fonts |
+| Category | Purpose |
+|----------|---------|
+| `images` | External images — proxied by server to bypass hotlink protection |
+| `api` | REST/GraphQL endpoints (CSP) |
 
-**How it works:**
-- Server collects sources from all enabled plugins at startup
-- CSP header is built dynamically based on enabled plugins
-- Disabling a plugin removes its sources from the allowlist
-- Resources from undeclared sources are blocked by the browser
+**Image Proxy:**
+
+External images often fail due to hotlink protection (403 errors). When you declare `sources.images`, the server will proxy requests through `/api/proxy/image`. Entity components use `getProxiedSrc()` to rewrite URLs automatically.
+
+```typescript
+// In entity components
+function getProxiedSrc(src: string | undefined): string | undefined {
+  if (!src) return undefined;
+  if (src.startsWith('/') || src.startsWith('data:') || src.startsWith('blob:')) return src;
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    return `/api/proxy/image?url=${encodeURIComponent(src)}`;
+  }
+  return src;
+}
+
+// Usage
+<img src={getProxiedSrc(thumbnail_url)} alt={title} />
+```
+
+**Important:** Only domains declared in `sources.images` will be proxied. Undeclared domains return 403.
 
 ### Adapters
 
@@ -296,6 +333,49 @@ adapters:
 ```
 
 **Relationship fields** use underscore prefix (`_project_id`) — these connect to `graph.yaml` relationships.
+
+### Nested Mappings
+
+For rich entity schemas, use nested YAML objects:
+
+```yaml
+# Example: Reddit plugin mapping to post entity
+adapters:
+  post:
+    terminology: Post
+    mapping:
+      id: .data.id
+      title: .data.title
+      content: .data.selftext
+      url: ".data.permalink | prepend: 'https://reddit.com'"
+      author:                              # Nested object
+        name: .data.author
+        url: ".data.author | prepend: 'https://reddit.com/u/'"
+      community:
+        name: .data.subreddit
+        url: ".data.subreddit | prepend: 'https://reddit.com/r/'"
+      engagement:
+        score: .data.score
+        comment_count: .data.num_comments
+      published_at: ".data.created_utc | from_unix"
+```
+
+Nested mappings are recursively evaluated — each leaf value is a JMESPath expression with optional transform.
+
+### Transforms
+
+Apply transforms after extracting a value using the pipe syntax: `.path | transform`
+
+| Transform | Description | Example |
+|-----------|-------------|---------|
+| `prepend:'prefix'` | Add string prefix | `.author \| prepend: 'https://reddit.com/u/'` |
+| `from_unix` | Unix timestamp → ISO datetime | `.created_utc \| from_unix` |
+| `invert:N` | Calculate N - value | `.priority \| invert:5` (for 1-5 → 5-1) |
+| `divide:N` | Divide by N | `.score \| divide:100` |
+| `multiply:N` | Multiply by N | `.progress \| multiply:100` |
+| `to_datetime` | Format as datetime string | `.timestamp \| to_datetime` |
+
+**Quoting:** Use single quotes around string arguments: `prepend: 'https://example.com/'`
 
 ### Operations
 
@@ -488,77 +568,115 @@ TSX files dynamically loaded and transpiled by the server.
 
 ### Two Types of Components
 
-**1. Framework components** — Shared primitives used by all entities (live in `bundled/components/`):
+**1. Primitives** — Theme-agnostic building blocks in `bundled/components/`:
 
 ```
 bundled/components/
+  text.tsx           # Text with data-variant (title, body, caption, etc.)
+  image.tsx          # Image with fallback and auto-proxy
+  stack.tsx          # Flex container (horizontal/vertical)
   list.tsx           # List container
-  text.tsx           # Text display
-  markdown.tsx       # Markdown rendering
-  layout/
-    stack.tsx        # Flex stack
-    scroll-area.tsx  # Scrollable container
+  scroll-area.tsx    # Scrollable container
+  url-bar.tsx        # URL input bar
 ```
 
-**2. Entity components** — Specific to an entity (live in entity folder):
+**2. Entity components** — Composed from primitives, in entity folder:
 
 ```
 entities/posts/components/
   post-item.tsx      # List item for posts
   post-header.tsx    # Detail view header
-  comment-thread.tsx # Nested comments
 ```
 
-When views reference components, entity components are checked first, then framework components.
+When views reference components, entity components are checked first, then primitives.
+
+### Primitives-Based Architecture
+
+**Entity components should ONLY compose primitives — never define custom CSS.**
+
+This ensures:
+- **Theme agnostic** — Components work with any theme (Mac OS 9, Windows XP, dark mode)
+- **Consistent styling** — All text, images, spacing come from the design system
+- **Easy maintenance** — Change a primitive once, all entities update
 
 ### Rules
 
 1. **Import React explicitly** — `import React from 'react'`
 2. **Export default** — `export default MyComponent`
 3. **TypeScript interfaces for props** — document your component's API
-4. **No heavy deps** — avoid Zod, lodash, etc. (breaks ESM bundling)
-5. **Accept both `children` and `content`** — YAML templates use `content` prop
+4. **No custom CSS** — compose primitives only, use `data-*` attributes for variants
+5. **Proxy external images** — use `getProxiedSrc()` for external URLs
 
-### Example Component
+### Example Entity Component
 
 ```tsx
 import React from 'react';
 
-interface MyItemProps {
-  title: string;
+interface GroupItemProps {
+  name: string;
   description?: string;
-  // For YAML templates, accept content as alternative to children
-  content?: string;
-  children?: React.ReactNode;
+  icon?: string;
+  members?: number;
 }
 
-export function MyItem({ title, description, content, children }: MyItemProps) {
+// Proxy external images to bypass hotlink protection
+function getProxiedSrc(src: string | undefined): string | undefined {
+  if (!src) return undefined;
+  if (src.startsWith('/') || src.startsWith('data:') || src.startsWith('blob:')) return src;
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    return `/api/proxy/image?url=${encodeURIComponent(src)}`;
+  }
+  return src;
+}
+
+export function GroupItem({ name, description, icon, members }: GroupItemProps) {
   return (
-    <div className="my-item">
-      <span className="my-item-title">{title}</span>
-      {description && <span className="my-item-desc">{description}</span>}
-      {children ?? content}
+    <div data-component="stack" data-direction="horizontal" data-gap="md" data-align="center">
+      {icon && (
+        <img
+          src={getProxiedSrc(icon)}
+          alt={name}
+          data-component="image"
+          data-size="md"
+        />
+      )}
+      <div data-component="stack" data-direction="vertical" data-gap="xs">
+        <span data-component="text" data-variant="title">{name}</span>
+        {description && (
+          <span data-component="text" data-variant="caption">{description}</span>
+        )}
+      </div>
+      {members !== undefined && (
+        <span data-component="text" data-variant="meta">{members} members</span>
+      )}
     </div>
   );
 }
 
-export default MyItem;
+export default GroupItem;
 ```
 
-### Styling
+### Styling via Data Attributes
 
-Components use class names that themes style. Add your component's CSS to the theme:
+Themes style primitives using `data-*` selectors:
 
 ```css
-/* In themes/os/macos9/theme.css */
-.my-item {
-  padding: 8px;
-  border-bottom: 1px solid var(--border-color);
-}
-.my-item-title {
+/* themes/os/macos9/theme.css */
+[data-component="text"][data-variant="title"] {
   font-weight: bold;
+  font-size: 14px;
+}
+[data-component="text"][data-variant="caption"] {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+[data-component="stack"][data-direction="horizontal"] {
+  display: flex;
+  flex-direction: row;
 }
 ```
+
+**Entity components never add to theme CSS** — they just compose existing primitives.
 
 ---
 
