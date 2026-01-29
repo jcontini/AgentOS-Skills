@@ -82,6 +82,11 @@ properties:
         format: url
         description: URL on that service
 
+  # Engagement
+  view_count:
+    type: integer
+    description: Number of views (if available from source)
+
   # Metadata
   published_at:
     type: datetime
@@ -91,7 +96,7 @@ properties:
     type: datetime
     description: When we retrieved this data
 
-operations: [get, transcript]
+operations: [get, search, list, transcript]
 
 display:
   primary: title
@@ -103,6 +108,57 @@ display:
 # Views for rendering video activities
 # Note: Browser provides padding and status bar automatically
 views:
+  search:
+    title: Videos
+    layout:
+      - component: list
+        data:
+          source: activity
+        item_component: video-search-result
+        item_props:
+          title: "{{title}}"
+          source_url: "{{source_url}}"
+          thumbnail: "{{thumbnail}}"
+          creator_name: "{{creator_name}}"
+          creator_url: "{{creator_url}}"
+          duration_ms: "{{duration_ms}}"
+          view_count: "{{view_count}}"
+          description: "{{description}}"
+
+  search_recent:
+    title: Recent Videos
+    layout:
+      - component: list
+        data:
+          source: activity
+        item_component: video-search-result
+        item_props:
+          title: "{{title}}"
+          source_url: "{{source_url}}"
+          thumbnail: "{{thumbnail}}"
+          creator_name: "{{creator_name}}"
+          creator_url: "{{creator_url}}"
+          duration_ms: "{{duration_ms}}"
+          view_count: "{{view_count}}"
+          description: "{{description}}"
+
+  list:
+    title: Channel Videos
+    layout:
+      - component: list
+        data:
+          source: activity
+        item_component: video-search-result
+        item_props:
+          title: "{{title}}"
+          source_url: "{{source_url}}"
+          thumbnail: "{{thumbnail}}"
+          creator_name: "{{creator_name}}"
+          creator_url: "{{creator_url}}"
+          duration_ms: "{{duration_ms}}"
+          view_count: "{{view_count}}"
+          description: "{{description}}"
+
   get:
     title: "{{activity.response.title}}"
     layout:
@@ -111,7 +167,7 @@ views:
           direction: vertical
           gap: "12px"
           style:
-            padding: "12px"
+            padding: "8px 12px"
         children:
           - component: video-header
             props:
@@ -133,7 +189,7 @@ views:
           direction: vertical
           gap: "12px"
           style:
-            padding: "12px"
+            padding: "8px 12px"
         children:
           - component: video-header
             props:
@@ -143,10 +199,7 @@ views:
               creator: "{{activity.response.creator.name}}"
               creatorUrl: "{{activity.response.creator.url}}"
               duration: "{{activity.response.duration_ms}}"
-          - component: text
-            props:
-              content: "Transcript"
-              variant: section-header
+              label: "Transcript"
           - component: markdown
             props:
               content: "{{activity.response.transcript}}"

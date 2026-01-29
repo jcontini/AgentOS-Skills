@@ -1,38 +1,38 @@
 /**
- * Video Header Component
+ * Video Search Result Component
  * 
- * Displays a video header with thumbnail, title, creator, and duration.
+ * Renders a single video search result (YouTube, Vimeo, etc.).
  * Uses primitive CSS patterns (stack, text, image) for theme compatibility.
  * 
  * Layout:
- * [thumbnail 16:9] | title
- *                  | creator (link)
- *                  | duration
+ * [thumbnail] | title (link)
+ *             | creator
+ *             | duration • views
  */
 
 import React, { useState } from 'react';
 
-export interface VideoHeaderProps {
-  /** Thumbnail image URL */
-  thumbnail?: string;
+interface VideoSearchResultProps {
   /** Video title */
   title: string;
-  /** Video URL (makes title clickable) */
-  url?: string;
+  /** Video URL */
+  source_url?: string;
+  /** Thumbnail image URL */
+  thumbnail?: string;
   /** Creator/channel name */
-  creator?: string;
-  /** Creator profile URL (makes name clickable) */
-  creatorUrl?: string;
+  creator_name?: string;
+  /** Creator profile URL */
+  creator_url?: string;
   /** Duration in milliseconds */
-  duration?: number;
-  /** Optional label to show below duration (e.g., "Transcript") */
-  label?: string;
+  duration_ms?: number;
+  /** View count */
+  view_count?: number;
+  /** Description/snippet */
+  description?: string;
 }
 
 /**
  * Format milliseconds to human-readable duration
- * - Under 1 hour: "MM:SS" (e.g., "5:23")
- * - 1 hour+: "H:MM:SS" (e.g., "1:05:23")
  */
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -46,6 +46,19 @@ function formatDuration(ms: number): string {
     return `${hours}:${pad(minutes)}:${pad(seconds)}`;
   }
   return `${minutes}:${pad(seconds)}`;
+}
+
+/**
+ * Format view count with K/M suffix
+ */
+function formatViews(count: number): string {
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M views`;
+  }
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K views`;
+  }
+  return `${count} views`;
 }
 
 /**
@@ -90,70 +103,91 @@ function getColorFromTitle(title: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-export function VideoHeader({
-  thumbnail,
+export function VideoSearchResult({
   title,
-  url,
-  creator,
-  creatorUrl,
-  duration,
-  label,
-}: VideoHeaderProps) {
+  source_url,
+  thumbnail,
+  creator_name,
+  creator_url,
+  duration_ms,
+  view_count,
+  description,
+}: VideoSearchResultProps) {
   const [imageError, setImageError] = useState(false);
   
-  // Determine if we should show thumbnail or fallback
   const showImage = thumbnail && !imageError;
   const showFallback = !showImage;
+  
+  // Build metadata line: "5:23 • 1.2M views"
+  const metaParts: string[] = [];
+  if (duration_ms && duration_ms > 0) {
+    metaParts.push(formatDuration(duration_ms));
+  }
+  if (view_count && view_count > 0) {
+    metaParts.push(formatViews(view_count));
+  }
+  const metaLine = metaParts.join(' • ');
   
   return (
     <div
       className="stack"
       data-direction="horizontal"
-      style={{ gap: '16px', alignItems: 'flex-start' }}
+      style={{ gap: '12px', padding: '8px 12px', alignItems: 'flex-start' }}
     >
       {/* Thumbnail */}
       {showImage && (
         <img
           className="image"
           data-variant="thumbnail"
-          data-size="lg"
+          data-size="sm"
           src={getProxiedSrc(thumbnail)}
-          alt={title}
+          alt=""
           onError={() => setImageError(true)}
-          style={{ flexShrink: 0 }}
+          style={{ flexShrink: 0, width: '120px', height: '68px', objectFit: 'cover', borderRadius: '4px' }}
         />
       )}
       {showFallback && (
         <div
           className="image image--initials"
           data-variant="thumbnail"
-          data-size="lg"
+          data-size="sm"
           style={{ 
             backgroundColor: getColorFromTitle(title),
             flexShrink: 0,
+            width: '120px',
+            height: '68px',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
           role="img"
-          aria-label={title}
+          aria-hidden="true"
         >
-          <span className="image__initials">{getInitials(title)}</span>
+          <span className="image__initials" style={{ fontSize: '1.5rem' }}>{getInitials(title)}</span>
         </div>
       )}
       
-      {/* Metadata */}
+      {/* Content */}
       <div
         className="stack"
         data-direction="vertical"
-        style={{ gap: '6px', flex: 1, minWidth: 0 }}
+        style={{ gap: '4px', flex: 1, minWidth: 0 }}
       >
         {/* Title */}
-        {url ? (
+        {source_url ? (
           <a
             className="text"
             data-variant="title"
-            href={url}
+            href={source_url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: '1.125rem', lineHeight: 1.3, textDecoration: 'none' }}
+            style={{ 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap',
+              textDecoration: 'none',
+            }}
           >
             {title}
           </a>
@@ -161,41 +195,70 @@ export function VideoHeader({
           <span
             className="text"
             data-variant="title"
-            style={{ fontSize: '1.125rem', lineHeight: 1.3 }}
+            style={{ 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap',
+            }}
           >
             {title}
           </span>
         )}
         
         {/* Creator */}
-        {creator && (
-          creatorUrl ? (
+        {creator_name && (
+          creator_url ? (
             <a
               className="text"
               data-variant="body"
-              href={creatorUrl}
+              href={creator_url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ textDecoration: 'none' }}
+              style={{ 
+                textDecoration: 'none',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
             >
-              {creator}
+              {creator_name}
             </a>
           ) : (
-            <span className="text" data-variant="body">{creator}</span>
+            <span
+              className="text"
+              data-variant="body"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {creator_name}
+            </span>
           )
         )}
         
-        {/* Duration */}
-        {duration !== undefined && duration > 0 && (
+        {/* Duration + Views */}
+        {metaLine && (
           <span className="text" data-variant="caption">
-            {formatDuration(duration)}
+            {metaLine}
           </span>
         )}
         
-        {/* Optional label (e.g., "Transcript") */}
-        {label && (
-          <span className="text" data-variant="section-header" style={{ marginTop: '4px' }}>
-            {label}
+        {/* Description (optional, truncated) */}
+        {description && (
+          <span
+            className="text"
+            data-variant="body"
+            style={{ 
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              opacity: 0.8,
+            }}
+          >
+            {description}
           </span>
         )}
       </div>
@@ -203,4 +266,4 @@ export function VideoHeader({
   );
 }
 
-export default VideoHeader;
+export default VideoSearchResult;
